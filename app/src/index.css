@@ -1,0 +1,51 @@
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --color-push: #E8634A;
+  --color-pull: #4A90D9;
+  --color-legs: #5BBD72;
+  --color-bg: #111111;
+  --color-surface: #1a1a1a;
+  --color-surface2: #222222;
+  --color-border: #2a2a2a;
+  --color-text: #e8e8e8;
+  --color-muted: #666666;
+  --color-green: #5BBD72;
+  --color-amber: #F0A500;
+  --font: 'IBM Plex Mono', 'SF Mono', 'Menlo', monospace;
+}
+
+html, body {
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font);
+  font-size: 14px;
+  min-height: 100dvh;
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+}
+
+button { cursor: pointer; font-family: var(--font); }
+input { font-family: var(--font); }
+
+::-webkit-scrollbar { display: none; }
+
+/* Remove number input spinners on webkit */
+input[type='number']::-webkit-outer-spin-button,
+input[type='number']::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type='number'] {
+  -moz-appearance: textfield;
+}
+
+/* Remove tap highlight on mobile */
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Smooth scroll */
+html {
+  scroll-behavior: smooth;
+}

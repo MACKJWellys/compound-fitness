@@ -1,0 +1,8 @@
+node_modules
+*.local
+.DS_Store
+*.log
+.superpowers
+.claude
+inject_data.js
+cf_backup.json
