@@ -348,22 +348,36 @@ function PRBottomSheet({ exercise, colour, onClose }) {
             const entries = (exPRs[rep] || []).slice(0, 6);
             const best = entries.reduce((m, e) => Math.max(m, parseFloat(e.weight) || 0), 0);
             return (
-              <div key={rep} style={{ marginBottom: 12 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-                  <span style={{ fontSize: 10, color: colour, fontWeight: 700 }}>{rep} REPS</span>
-                  <span style={{ fontSize: 10, color: '#888' }}>best {best} kg</span>
-                </div>
-                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                  {entries.map((entry, ci) => (
-                    <span key={ci} style={{
-                      background: ci === 0 ? `${colour}22` : '#141414',
-                      border: `1px solid ${ci === 0 ? colour + '55' : '#2a2a2a'}`,
-                      borderRadius: 4, padding: '3px 8px',
-                      fontSize: 11, color: ci === 0 ? '#e8e8e8' : '#666',
-                    }}>
-                      {entry.weight}{entry.date ? `  ${entry.date}` : ''}
-                    </span>
-                  ))}
+              <div key={rep} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                <span style={{ fontSize: 10, color: '#555', fontWeight: 700, minWidth: 18, textAlign: 'right', flexShrink: 0 }}>
+                  {rep}
+                </span>
+                <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
+                  {entries.map((entry, ci) => {
+                    const w = parseFloat(entry.weight) || 0;
+                    const isBest = w === best && best > 0;
+                    // Format date to dd.mm
+                    let dateLabel = '';
+                    if (entry.date) {
+                      const parts = entry.date.match(/(\d{4})-(\d{2})-(\d{2})/);
+                      if (parts) {
+                        dateLabel = `${parseInt(parts[3])}.${parseInt(parts[2])}`;
+                      } else {
+                        dateLabel = entry.date;
+                      }
+                    }
+                    return (
+                      <span key={ci} style={{
+                        background: isBest ? `${colour}22` : '#141414',
+                        border: `1px solid ${isBest ? colour + '55' : '#2a2a2a'}`,
+                        borderRadius: 4, padding: '3px 8px',
+                        fontSize: 11, color: isBest ? '#e8e8e8' : '#666',
+                      }}>
+                        {entry.weight}
+                        {dateLabel && <span style={{ fontSize: 9, color: '#444', marginLeft: 5 }}>{dateLabel}</span>}
+                      </span>
+                    );
+                  })}
                 </div>
               </div>
             );
