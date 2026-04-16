@@ -3,6 +3,7 @@ import { getPRBook, addPREntry, saveSession, advanceNextSession, getSessionVolum
 import { toDateStr } from '../utils/dateUtils';
 import MuscleIllustration from '../components/MuscleIllustration';
 import { DAYS } from '../data/programme';
+import { MUSCLE_MAPPINGS } from '../data/muscleMappings';
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 
@@ -511,19 +512,60 @@ function HistoryBottomSheet({ exercise, colour, onClose }) {
   );
 }
 
-// ── Substitute Sheet ──────────────────────────────────────────────────────────
+// ── Grouped exercise list helper ─────────────────────────────────────────────
 
-function SubstituteSheet({ colour, onSelect, onClose }) {
-  const allExercises = [];
-  const seen = new Set();
+const MUSCLE_GROUP_ORDER = [
+  'Chest', 'Front Delts', 'Side Delts', 'Triceps',
+  'Upper Back / Lats', 'Rear Delts', 'Traps', 'Biceps',
+  'Quads', 'Hamstrings', 'Glutes', 'Calves',
+  'Abs', 'Obliques',
+];
+
+function getGroupedExercises(priorityMuscle) {
+  // Build unique exercise list from programme
+  const exerciseMap = {};
   DAYS.forEach((day) => {
     day.exercises.forEach((ex) => {
-      if (!seen.has(ex.name)) {
-        seen.add(ex.name);
-        allExercises.push({ ...ex });
-      }
+      if (!exerciseMap[ex.name]) exerciseMap[ex.name] = { ...ex };
     });
   });
+
+  // Group by primary muscle using MUSCLE_MAPPINGS
+  const groups = {};
+  Object.entries(exerciseMap).forEach(([name, ex]) => {
+    const mapping = MUSCLE_MAPPINGS[name];
+    const group = mapping?.primary?.[0] || 'Other';
+    if (!groups[group]) groups[group] = [];
+    groups[group].push(ex);
+  });
+
+  // Sort groups: priority muscle first, then standard order
+  const orderedGroups = [];
+  const order = priorityMuscle
+    ? [priorityMuscle, ...MUSCLE_GROUP_ORDER.filter((g) => g !== priorityMuscle)]
+    : MUSCLE_GROUP_ORDER;
+  order.forEach((g) => {
+    if (groups[g]) orderedGroups.push({ group: g, exercises: groups[g] });
+  });
+  // Add any remaining groups not in the standard order
+  Object.keys(groups).forEach((g) => {
+    if (!orderedGroups.find((og) => og.group === g)) {
+      orderedGroups.push({ group: g, exercises: groups[g] });
+    }
+  });
+  return orderedGroups;
+}
+
+function getPrimaryMuscle(exerciseName) {
+  const mapping = MUSCLE_MAPPINGS[exerciseName];
+  return mapping?.primary?.[0] || null;
+}
+
+// ── Substitute Sheet ──────────────────────────────────────────────────────────
+
+function SubstituteSheet({ colour, currentExercise, onSelect, onClose }) {
+  const priorityMuscle = getPrimaryMuscle(currentExercise?.name);
+  const grouped = getGroupedExercises(priorityMuscle);
 
   return (
     <>
@@ -538,31 +580,70 @@ function SubstituteSheet({ colour, onSelect, onClose }) {
         <div style={{ display: 'flex', justifyContent: 'center', padding: '12px 0 8px' }}>
           <div style={{ width: 36, height: 4, background: '#333', borderRadius: 2 }} />
         </div>
-        <div style={{ fontSize: 11, color: '#888', letterSpacing: '0.1em', marginBottom: 14 }}>SELECT SUBSTITUTE</div>
-        {allExercises.map((ex) => (
-          <button key={ex.name} onClick={() => onSelect(ex)} style={{
-            display: 'block', width: '100%', textAlign: 'left',
-            background: 'none', border: 'none', borderBottom: '1px solid #1e1e1e',
-            color: '#e8e8e8', fontSize: 13, fontFamily: 'var(--font)',
-            padding: '10px 0', cursor: 'pointer',
-          }}>
-            {ex.name}
-          </button>
+        <div style={{ fontSize: 11, color: '#888', letterSpacing: '0.1em', marginBottom: 4 }}>SELECT SUBSTITUTE</div>
+        {currentExercise && (
+          <div style={{ fontSize: 10, color: '#444', marginBottom: 14 }}>
+            Replacing {currentExercise.name}
+          </div>
+        )}
+        {grouped.map(({ group, exercises }) => (
+          <div key={group}>
+            <div style={{
+              fontSize: 9, color: group === priorityMuscle ? colour : '#555',
+              letterSpacing: '0.12em', fontWeight: 700,
+              padding: '10px 0 6px',
+              borderTop: '1px solid #222',
+            }}>
+              {group.toUpperCase()}
+            </div>
+            {exercises.map((ex) => (
+              <button key={ex.name} onClick={() => onSelect(ex)} style={{
+                display: 'block', width: '100%', textAlign: 'left',
+                background: 'none', border: 'none', borderBottom: '1px solid #1a1a1a',
+                color: ex.name === currentExercise?.name ? '#444' : '#e8e8e8',
+                fontSize: 13, fontFamily: 'var(--font)',
+                padding: '8px 0 8px 12px', cursor: ex.name === currentExercise?.name ? 'default' : 'pointer',
+              }}>
+                {ex.name}
+              </button>
+            ))}
+          </div>
         ))}
       </div>
     </>
   );
 }
 
-// ── Custom Exercise Sheet ─────────────────────────────────────────────────────
+// ── Add Exercise Sheet ───────────────────────────────────────────────────────
 
-function CustomExerciseSheet({ colour, onAdd, onClose }) {
+function AddExerciseSheet({ colour, onAdd, onClose }) {
+  const [showCustom, setShowCustom] = useState(false);
   const [name, setName] = useState('');
   const [sets, setSets] = useState('3');
   const [reps, setReps] = useState('10');
+  const [muscleGroup, setMuscleGroup] = useState('');
 
-  function handleAdd() {
-    if (!name.trim()) return;
+  const grouped = getGroupedExercises(null);
+
+  function handlePickExercise(ex) {
+    onAdd({
+      name: ex.name,
+      sets: ex.sets || '3',
+      reps: ex.reps || '10',
+      rest: ex.rest || '',
+      restSeconds: ex.restSeconds || 90,
+      note: ex.note || '',
+      priority: false,
+    });
+    onClose();
+  }
+
+  function handleAddCustom() {
+    if (!name.trim() || !muscleGroup) return;
+    // Add to MUSCLE_MAPPINGS at runtime so volume tracks immediately
+    if (!MUSCLE_MAPPINGS[name.trim()]) {
+      MUSCLE_MAPPINGS[name.trim()] = { primary: [muscleGroup], secondary: [] };
+    }
     onAdd({
       name: name.trim(),
       sets,
@@ -571,8 +652,6 @@ function CustomExerciseSheet({ colour, onAdd, onClose }) {
       restSeconds: 90,
       note: '',
       priority: false,
-      primaryMuscles: [],
-      secondaryMuscles: [],
     });
     onClose();
   }
@@ -590,40 +669,100 @@ function CustomExerciseSheet({ colour, onAdd, onClose }) {
         position: 'fixed', bottom: 0, left: 0, right: 0,
         background: '#1a1a1a', borderTop: `2px solid ${colour}`,
         borderRadius: '16px 16px 0 0', zIndex: 160,
+        maxHeight: '75vh', overflowY: 'auto',
         padding: '0 20px 40px',
       }}>
         <div style={{ display: 'flex', justifyContent: 'center', padding: '12px 0 8px' }}>
           <div style={{ width: 36, height: 4, background: '#333', borderRadius: 2 }} />
         </div>
         <div style={{ fontSize: 11, color: '#888', letterSpacing: '0.1em', marginBottom: 14 }}>ADD EXERCISE</div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-          <div>
-            <label style={{ fontSize: 9, color: '#444', letterSpacing: '0.08em' }}>EXERCISE NAME</label>
-            <input type="text" placeholder="e.g. Cable Face Pull" value={name}
-              onChange={(e) => setName(e.target.value)}
-              style={{ ...inputStyle, marginTop: 4 }} autoFocus />
-          </div>
-          <div style={{ display: 'flex', gap: 10 }}>
-            <div style={{ flex: 1 }}>
-              <label style={{ fontSize: 9, color: '#444', letterSpacing: '0.08em' }}>SETS</label>
-              <input type="number" min="1" value={sets} onChange={(e) => setSets(e.target.value)}
-                style={{ ...inputStyle, marginTop: 4 }} />
+
+        {!showCustom ? (
+          <>
+            {grouped.map(({ group, exercises }) => (
+              <div key={group}>
+                <div style={{
+                  fontSize: 9, color: '#555', letterSpacing: '0.12em', fontWeight: 700,
+                  padding: '10px 0 6px', borderTop: '1px solid #222',
+                }}>
+                  {group.toUpperCase()}
+                </div>
+                {exercises.map((ex) => (
+                  <button key={ex.name} onClick={() => handlePickExercise(ex)} style={{
+                    display: 'block', width: '100%', textAlign: 'left',
+                    background: 'none', border: 'none', borderBottom: '1px solid #1a1a1a',
+                    color: '#e8e8e8', fontSize: 13, fontFamily: 'var(--font)',
+                    padding: '8px 0 8px 12px', cursor: 'pointer',
+                  }}>
+                    {ex.name}
+                  </button>
+                ))}
+              </div>
+            ))}
+            <button onClick={() => setShowCustom(true)} style={{
+              width: '100%', background: 'none', border: '1px dashed #333',
+              borderRadius: 8, color: '#666', fontSize: 12,
+              fontFamily: 'var(--font)', letterSpacing: '0.08em',
+              padding: '12px 0', marginTop: 14, cursor: 'pointer',
+            }}>
+              + CUSTOM EXERCISE
+            </button>
+          </>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <div>
+              <label style={{ fontSize: 9, color: '#444', letterSpacing: '0.08em' }}>EXERCISE NAME</label>
+              <input type="text" placeholder="e.g. Cable Face Pull" value={name}
+                onChange={(e) => setName(e.target.value)}
+                style={{ ...inputStyle, marginTop: 4 }} autoFocus />
             </div>
-            <div style={{ flex: 1 }}>
-              <label style={{ fontSize: 9, color: '#444', letterSpacing: '0.08em' }}>REPS</label>
-              <input type="number" min="1" value={reps} onChange={(e) => setReps(e.target.value)}
-                style={{ ...inputStyle, marginTop: 4 }} />
+            <div>
+              <label style={{ fontSize: 9, color: '#444', letterSpacing: '0.08em' }}>MUSCLE GROUP</label>
+              <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginTop: 6 }}>
+                {MUSCLE_GROUP_ORDER.map((g) => (
+                  <button key={g} onClick={() => setMuscleGroup(g)} style={{
+                    background: muscleGroup === g ? colour : '#222',
+                    border: `1px solid ${muscleGroup === g ? colour : '#333'}`,
+                    borderRadius: 4, color: muscleGroup === g ? '#fff' : '#888',
+                    fontSize: 10, fontFamily: 'var(--font)', padding: '4px 8px',
+                    cursor: 'pointer',
+                  }}>
+                    {g}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: 10 }}>
+              <div style={{ flex: 1 }}>
+                <label style={{ fontSize: 9, color: '#444', letterSpacing: '0.08em' }}>SETS</label>
+                <input type="number" min="1" value={sets} onChange={(e) => setSets(e.target.value)}
+                  style={{ ...inputStyle, marginTop: 4 }} />
+              </div>
+              <div style={{ flex: 1 }}>
+                <label style={{ fontSize: 9, color: '#444', letterSpacing: '0.08em' }}>REPS</label>
+                <input type="number" min="1" value={reps} onChange={(e) => setReps(e.target.value)}
+                  style={{ ...inputStyle, marginTop: 4 }} />
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button onClick={handleAddCustom} disabled={!name.trim() || !muscleGroup} style={{
+                flex: 1, background: name.trim() && muscleGroup ? colour : '#333', border: 'none', borderRadius: 8,
+                color: '#fff', fontSize: 13, fontFamily: 'var(--font)', fontWeight: 700,
+                padding: '12px 0', cursor: name.trim() && muscleGroup ? 'pointer' : 'not-allowed',
+                opacity: name.trim() && muscleGroup ? 1 : 0.6, marginTop: 4,
+              }}>
+                ADD TO SESSION
+              </button>
+              <button onClick={() => setShowCustom(false)} style={{
+                background: 'none', border: '1px solid #333', borderRadius: 8,
+                color: '#666', fontSize: 13, fontFamily: 'var(--font)',
+                padding: '12px 16px', cursor: 'pointer', marginTop: 4,
+              }}>
+                BACK
+              </button>
             </div>
           </div>
-          <button onClick={handleAdd} disabled={!name.trim()} style={{
-            background: name.trim() ? colour : '#333', border: 'none', borderRadius: 8,
-            color: '#fff', fontSize: 13, fontFamily: 'var(--font)', fontWeight: 700,
-            padding: '12px 0', cursor: name.trim() ? 'pointer' : 'not-allowed',
-            opacity: name.trim() ? 1 : 0.6, marginTop: 4,
-          }}>
-            ADD TO SESSION
-          </button>
-        </div>
+        )}
       </div>
     </>
   );
@@ -1196,13 +1335,14 @@ export default function SessionScreen({ session, sessionIndex, onBack, onComplet
       {substituteForIdx !== null && (
         <SubstituteSheet
           colour={session.colour}
+          currentExercise={exercises[substituteForIdx]}
           onSelect={(ex) => handleSubstitute(substituteForIdx, ex)}
           onClose={() => setSubstituteForIdx(null)}
         />
       )}
 
       {showCustomExercise && (
-        <CustomExerciseSheet
+        <AddExerciseSheet
           colour={session.colour}
           onAdd={handleAddCustomExercise}
           onClose={() => setShowCustomExercise(false)}
