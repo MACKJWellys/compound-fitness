@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
-import { getPRBook, addPREntry, saveSession, advanceNextSession, getSessionVolume, getWeeklyVolume, getVolumeTargets, saveActiveSession, getActiveSession, updateSession, deleteSession } from '../data/storage';
+import { getPRBook, addPREntry, saveSession, advanceNextSession, getSessionVolume, getWeeklyVolume, getVolumeTargets, saveActiveSession, getActiveSession, updateSession, deleteSession, getExerciseHistory } from '../data/storage';
 import { toDateStr } from '../utils/dateUtils';
 import MuscleIllustration from '../components/MuscleIllustration';
 import { DAYS } from '../data/programme';
@@ -165,7 +165,7 @@ function SetRow({ setNum, setData, colour, dimmed, onChange, isPR }) {
 
 // ── Exercise Card ─────────────────────────────────────────────────────────────
 
-function ExerciseCard({ exercise, colour, sets, onSetsChange, prBook, onOpenPRSheet, onMoveUp, onMoveDown, onSubstitute, onStartTimer }) {
+function ExerciseCard({ exercise, colour, sets, onSetsChange, prBook, onOpenPRSheet, onOpenHistory, onMoveUp, onMoveDown, onSubstitute, onStartTimer }) {
   const [noteExpanded, setNoteExpanded] = useState(false);
   const [snapping, setSnapping] = useState(false);
   const prevAllCompleteRef = useRef(false);
@@ -234,6 +234,14 @@ function ExerciseCard({ exercise, colour, sets, onSetsChange, prBook, onOpenPRSh
           )}
           {exercise.priority && (
             <span style={{ background: colour, color: '#fff', fontSize: 9, fontWeight: 700, letterSpacing: '0.08em', borderRadius: 3, padding: '2px 6px' }}>KEY</span>
+          )}
+          {onOpenHistory && (
+            <button
+              onClick={() => onOpenHistory(exercise)}
+              style={{ background: 'none', border: 'none', color: '#555', fontSize: 9, fontFamily: 'var(--font)', cursor: 'pointer', padding: '4px 6px', letterSpacing: '0.04em', minHeight: 32 }}
+            >
+              HIST
+            </button>
           )}
           <button
             onClick={() => onOpenPRSheet(exercise)}
@@ -391,6 +399,113 @@ function PRBottomSheet({ exercise, colour, onClose }) {
             </button>
           </div>
         </div>
+      </div>
+    </>
+  );
+}
+
+// ── History Bottom Sheet ─────────────────────────────────────────────────────
+
+function HistoryBottomSheet({ exercise, colour, onClose }) {
+  const history = getExerciseHistory(exercise.name);
+
+  function formatDate(dateStr) {
+    if (!dateStr) return '—';
+    const d = new Date(`${dateStr}T12:00:00`);
+    return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: '2-digit' });
+  }
+
+  return (
+    <>
+      <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 150 }} />
+      <div style={{
+        position: 'fixed', bottom: 0, left: 0, right: 0,
+        background: '#1a1a1a', borderTop: `2px solid ${colour}`,
+        borderRadius: '16px 16px 0 0', zIndex: 160,
+        maxHeight: '75vh', overflowY: 'auto',
+        padding: '0 20px 40px',
+      }}>
+        <div style={{ display: 'flex', justifyContent: 'center', padding: '12px 0 8px' }}>
+          <div style={{ width: 36, height: 4, background: '#333', borderRadius: 2 }} />
+        </div>
+        <div style={{ fontSize: 11, color: colour, letterSpacing: '0.12em', fontWeight: 700, marginBottom: 4 }}>
+          HISTORY
+        </div>
+        <div style={{ fontSize: 14, fontWeight: 700, color: '#e8e8e8', marginBottom: 16 }}>
+          {exercise.name}
+        </div>
+
+        {history.length === 0 ? (
+          <div style={{ fontSize: 12, color: '#444', marginBottom: 16 }}>No previous sessions logged</div>
+        ) : (
+          history.map((entry, idx) => {
+            const loggedSets = (entry.sets || []).filter((s) => {
+              const r = parseInt(s.reps);
+              return !isNaN(r) && r > 0;
+            });
+            const totalKg = loggedSets.reduce((sum, s) => {
+              const w = parseFloat(s.weight) || 0;
+              const r = parseInt(s.reps) || 0;
+              return sum + w * r;
+            }, 0);
+            const bestSet = loggedSets.reduce((best, s) => {
+              const w = parseFloat(s.weight) || 0;
+              return w > (best.w || 0) ? { w, r: parseInt(s.reps) } : best;
+            }, {});
+
+            return (
+              <div key={idx} style={{
+                background: idx === 0 ? `${colour}10` : '#141414',
+                border: `1px solid ${idx === 0 ? colour + '30' : '#222'}`,
+                borderRadius: 8,
+                padding: '12px 14px',
+                marginBottom: 8,
+              }}>
+                {/* Header: date + session name */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span style={{ fontSize: 12, fontWeight: 700, color: idx === 0 ? colour : '#999' }}>
+                      {formatDate(entry.date)}
+                    </span>
+                    <span style={{ fontSize: 10, color: '#555' }}>{entry.sessionName}</span>
+                  </div>
+                  {entry.rating && (
+                    <span style={{ fontSize: 10, color: '#555' }}>{entry.rating}/10</span>
+                  )}
+                </div>
+
+                {/* Sets grid */}
+                <div style={{ display: 'grid', gridTemplateColumns: '18px 1fr', gap: '2px 6px' }}>
+                  {loggedSets.map((s, si) => (
+                    <div key={si} style={{ display: 'contents' }}>
+                      <div style={{ fontSize: 10, color: '#444', textAlign: 'right', lineHeight: '18px' }}>{si + 1}</div>
+                      <div style={{ fontSize: 12, color: '#ccc', lineHeight: '18px', display: 'flex', gap: 6, alignItems: 'center' }}>
+                        <span style={{ fontWeight: 600 }}>{s.weight}kg</span>
+                        <span style={{ color: '#666' }}>×</span>
+                        <span>{s.reps}</span>
+                        {s.note && <span style={{ fontSize: 10, color: '#555', fontStyle: 'italic' }}>{s.note}</span>}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Summary line */}
+                <div style={{ display: 'flex', gap: 12, marginTop: 6, fontSize: 10, color: '#555' }}>
+                  <span>{loggedSets.length} sets</span>
+                  {totalKg > 0 && <span>{Math.round(totalKg)} kg total</span>}
+                  {bestSet.w > 0 && <span>top {bestSet.w}×{bestSet.r}</span>}
+                </div>
+
+                {/* Session note */}
+                {entry.note && (
+                  <div style={{ fontSize: 10, color: '#555', fontStyle: 'italic', marginTop: 6, borderTop: '1px solid #222', paddingTop: 6 }}>
+                    {entry.note}
+                  </div>
+                )}
+              </div>
+            );
+          })
+        )}
       </div>
     </>
   );
@@ -786,6 +901,7 @@ export default function SessionScreen({ session, sessionIndex, onBack, onComplet
   const [substituteForIdx, setSubstituteForIdx] = useState(null);
   const [showCustomExercise, setShowCustomExercise] = useState(false);
   const [prSheetExercise, setPrSheetExercise] = useState(null);
+  const [historyExercise, setHistoryExercise] = useState(null);
   const [showModal, setShowModal] = useState(false);
   const [summaryData, setSummaryData] = useState(null); // { detectedPRs, totalSets, totalKg }
   const [muscleChipOpen, setMuscleChipOpen] = useState(false);
@@ -1029,6 +1145,7 @@ export default function SessionScreen({ session, sessionIndex, onBack, onComplet
             onSetsChange={(newSets) => handleSetsChange(i, newSets)}
             prBook={prBook}
             onOpenPRSheet={(ex) => setPrSheetExercise(ex)}
+            onOpenHistory={isHistoryMode ? null : (ex) => setHistoryExercise(ex)}
             onMoveUp={isHistoryMode || i === 0 ? null : () => moveExercise(i, i - 1)}
             onMoveDown={isHistoryMode || i === exercises.length - 1 ? null : () => moveExercise(i, i + 1)}
             onSubstitute={isHistoryMode ? null : () => setSubstituteForIdx(i)}
@@ -1065,6 +1182,14 @@ export default function SessionScreen({ session, sessionIndex, onBack, onComplet
           exercise={prSheetExercise}
           colour={session.colour}
           onClose={() => setPrSheetExercise(null)}
+        />
+      )}
+
+      {historyExercise && (
+        <HistoryBottomSheet
+          exercise={historyExercise}
+          colour={session.colour}
+          onClose={() => setHistoryExercise(null)}
         />
       )}
 

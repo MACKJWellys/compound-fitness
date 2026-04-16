@@ -212,6 +212,26 @@ export function getActiveSession() {
   return get(KEYS.ACTIVE_SESSION, null);
 }
 
+// Exercise history: returns all past session entries containing a given exercise, newest first
+export function getExerciseHistory(exerciseName) {
+  const log = getSessionLog();
+  const results = [];
+  for (let i = log.length - 1; i >= 0; i--) {
+    const session = log[i];
+    const match = (session.exercises || []).find((ex) => ex.name === exerciseName);
+    if (match) {
+      results.push({
+        date: session.date,
+        sessionName: session.sessionName,
+        rating: session.rating,
+        note: session.note,
+        sets: match.sets || [],
+      });
+    }
+  }
+  return results;
+}
+
 // ── Export / Import ──
 
 export function exportAllData() {
