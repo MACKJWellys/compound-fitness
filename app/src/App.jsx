@@ -5,98 +5,87 @@ import Programme from './screens/Programme';
 import SessionScreen from './screens/SessionScreen';
 import Calendar from './screens/Calendar';
 import Settings from './screens/Settings';
-import { DAYS } from './data/programme';
+import { DAYS, FREESTYLE_SESSION, FREESTYLE_INDEX } from './data/programme';
 import { getActiveSession, saveActiveSession } from './data/storage';
+
+const ICON = { width: 16, height: 16, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 1.75, strokeLinecap: 'round', strokeLinejoin: 'round' };
 
 const TABS = [
   {
     id: 'home',
-    label: 'HOME',
-    icon: (active) => (
-      <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-        <path
-          d="M3 9.5L10 3l7 6.5V17a1 1 0 01-1 1H4a1 1 0 01-1-1V9.5z"
-          stroke={active ? '#e8e8e8' : '#555'}
-          strokeWidth="1.5"
-          fill={active ? '#e8e8e822' : 'none'}
-          strokeLinejoin="round"
-        />
-        <rect x="7.5" y="12" width="5" height="6" rx="0.5" stroke={active ? '#e8e8e8' : '#555'} strokeWidth="1.5" />
+    label: 'Home',
+    icon: (
+      <svg {...ICON}>
+        <path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z" />
       </svg>
     ),
   },
   {
     id: 'prbook',
-    label: 'PR BOOK',
-    icon: (active) => (
-      <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-        <rect
-          x="4"
-          y="2"
-          width="12"
-          height="16"
-          rx="1.5"
-          stroke={active ? '#e8e8e8' : '#555'}
-          strokeWidth="1.5"
-        />
-        <line x1="7" y1="7" x2="13" y2="7" stroke={active ? '#e8e8e8' : '#555'} strokeWidth="1.5" strokeLinecap="round" />
-        <line x1="7" y1="10" x2="13" y2="10" stroke={active ? '#e8e8e8' : '#555'} strokeWidth="1.5" strokeLinecap="round" />
-        <line x1="7" y1="13" x2="11" y2="13" stroke={active ? '#e8e8e8' : '#555'} strokeWidth="1.5" strokeLinecap="round" />
+    label: 'PR Book',
+    icon: (
+      <svg {...ICON}>
+        <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20V3H6.5A2.5 2.5 0 0 0 4 5.5z" />
+        <path d="M8 7h8M8 11h6" />
       </svg>
     ),
   },
   {
     id: 'programme',
-    label: 'PROGRAMME',
-    icon: (active) => (
-      <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-        <rect
-          x="3"
-          y="5"
-          width="14"
-          height="12"
-          rx="1.5"
-          stroke={active ? '#e8e8e8' : '#555'}
-          strokeWidth="1.5"
-        />
-        <line x1="3" y1="9" x2="17" y2="9" stroke={active ? '#e8e8e8' : '#555'} strokeWidth="1.5" />
-        <line x1="7" y1="3" x2="7" y2="7" stroke={active ? '#e8e8e8' : '#555'} strokeWidth="1.5" strokeLinecap="round" />
-        <line x1="13" y1="3" x2="13" y2="7" stroke={active ? '#e8e8e8' : '#555'} strokeWidth="1.5" strokeLinecap="round" />
+    label: 'Programme',
+    icon: (
+      <svg {...ICON}>
+        <path d="M4 6h16M4 12h16M4 18h10" />
+        <path d="M18 15v6M15 18h6" />
       </svg>
     ),
   },
   {
     id: 'calendar',
-    label: 'CAL',
-    icon: (active) => (
-      <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-        <rect x="3" y="4" width="14" height="13" rx="1.5" stroke={active ? '#e8e8e8' : '#555'} strokeWidth="1.5" />
-        <line x1="3" y1="8" x2="17" y2="8" stroke={active ? '#e8e8e8' : '#555'} strokeWidth="1.5" />
-        <line x1="7" y1="2" x2="7" y2="6" stroke={active ? '#e8e8e8' : '#555'} strokeWidth="1.5" strokeLinecap="round" />
-        <line x1="13" y1="2" x2="13" y2="6" stroke={active ? '#e8e8e8' : '#555'} strokeWidth="1.5" strokeLinecap="round" />
-        <circle cx="7" cy="12" r="1" fill={active ? '#e8e8e8' : '#555'} />
-        <circle cx="10" cy="12" r="1" fill={active ? '#e8e8e8' : '#555'} />
-        <circle cx="13" cy="12" r="1" fill={active ? '#e8e8e8' : '#555'} />
+    label: 'Calendar',
+    icon: (
+      <svg {...ICON}>
+        <rect x="3" y="4" width="18" height="16" rx="2" />
+        <path d="M3 10h18M8 2v4M16 2v4" />
+        <path d="M8 14h.01M12 14h.01M16 14h.01" strokeWidth="2.5" />
       </svg>
     ),
   },
   {
     id: 'settings',
-    label: 'DATA',
-    icon: (active) => (
-      <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-        <path d="M4 6h12M4 10h12M4 14h8" stroke={active ? '#e8e8e8' : '#555'} strokeWidth="1.5" strokeLinecap="round" />
-        <circle cx="15" cy="14" r="2" stroke={active ? '#e8e8e8' : '#555'} strokeWidth="1.5" />
+    label: 'Data',
+    icon: (
+      <svg {...ICON}>
+        <ellipse cx="12" cy="5" rx="8" ry="3" />
+        <path d="M4 5v14c0 1.66 3.58 3 8 3s8-1.34 8-3V5" />
+        <path d="M4 12c0 1.66 3.58 3 8 3s8-1.34 8-3" />
       </svg>
     ),
   },
 ];
 
+function sessionForIndex(i) {
+  if (i === FREESTYLE_INDEX) return FREESTYLE_SESSION;
+  return DAYS[i] || null;
+}
+
+function sessionForName(name) {
+  if (name === FREESTYLE_SESSION.name) return FREESTYLE_SESSION;
+  return DAYS.find((d) => d.name === name) || null;
+}
+
+function indexForSession(session) {
+  if (!session) return 0;
+  if (session.freestyle) return FREESTYLE_INDEX;
+  const idx = DAYS.findIndex((d) => d.name === session.name);
+  return idx >= 0 ? idx : 0;
+}
+
 export default function App() {
   const [activeTab, setActiveTab] = useState('home');
   const [activeSession, setActiveSession] = useState(() => {
     const saved = getActiveSession();
-    return saved ? (DAYS[saved.sessionIndex] || null) : null;
+    return saved ? sessionForIndex(saved.sessionIndex) : null;
   });
   const [activeSessionIndex, setActiveSessionIndex] = useState(() => {
     const saved = getActiveSession();
@@ -120,8 +109,7 @@ export default function App() {
     // Starting a fresh session — discard any in-progress one
     saveActiveSession(null);
     setSavedSessionData(null);
-    const idx = DAYS.findIndex((d) => d.name === session.name);
-    setActiveSessionIndex(idx >= 0 ? idx : 0);
+    setActiveSessionIndex(indexForSession(session));
     setActiveSession(session);
     setHistorySession(null);
     setSessionDateOverride(null);
@@ -130,7 +118,7 @@ export default function App() {
   function handleContinueSession() {
     const saved = getActiveSession();
     if (!saved) return;
-    const dayDef = DAYS[saved.sessionIndex];
+    const dayDef = sessionForIndex(saved.sessionIndex);
     if (!dayDef) return;
     setActiveSessionIndex(saved.sessionIndex);
     setActiveSession(dayDef);
@@ -139,19 +127,17 @@ export default function App() {
   }
 
   function handleViewSession(logEntry) {
-    const dayDef = DAYS.find((d) => d.name === logEntry.sessionName) || DAYS[0];
-    const idx = DAYS.indexOf(dayDef);
-    setActiveSessionIndex(idx >= 0 ? idx : 0);
+    const dayDef = sessionForName(logEntry.sessionName) || DAYS[0];
+    setActiveSessionIndex(indexForSession(dayDef));
     setActiveSession(dayDef);
     setHistorySession(logEntry);
     setSessionDateOverride(null);
   }
 
   function handleCreateSession(dateStr, sessionName) {
-    const dayDef = DAYS.find((d) => d.name === sessionName);
+    const dayDef = sessionForName(sessionName);
     if (!dayDef) return;
-    const idx = DAYS.indexOf(dayDef);
-    setActiveSessionIndex(idx >= 0 ? idx : 0);
+    setActiveSessionIndex(indexForSession(dayDef));
     setActiveSession(dayDef);
     setHistorySession(null);
     setSessionDateOverride(dateStr);
@@ -166,12 +152,18 @@ export default function App() {
     setSessionLogVersion((version) => version + 1);
   }
 
-  const liveColour = savedSessionData ? (DAYS[savedSessionData.sessionIndex]?.colour || null) : null;
+  const liveColour = savedSessionData ? (sessionForIndex(savedSessionData.sessionIndex)?.colour || null) : null;
+  const [menuOpen, setMenuOpen] = useState(false);
+
+  function selectTab(id) {
+    setActiveTab(id);
+    setMenuOpen(false);
+  }
 
   return (
     <div
       style={{
-        background: '#111111',
+        background: 'var(--bg)',
         minHeight: '100dvh',
         display: 'flex',
         flexDirection: 'column',
@@ -197,8 +189,7 @@ export default function App() {
         style={{
           flex: 1,
           overflowY: 'auto',
-          // Reserve space for the tab bar (~60px) + safe area
-          paddingBottom: 'calc(60px + env(safe-area-inset-bottom, 0px))',
+          paddingBottom: 'calc(24px + env(safe-area-inset-bottom, 0px))',
         }}
       >
         {activeTab === 'home' && (
@@ -222,78 +213,90 @@ export default function App() {
         {activeTab === 'settings' && <Settings />}
       </div>
 
-      {/* Bottom tab bar */}
-      <div
+      {/* Hamburger button — top right */}
+      <button
+        onClick={() => setMenuOpen((v) => !v)}
+        aria-label={menuOpen ? 'Close menu' : 'Open menu'}
+        aria-expanded={menuOpen}
+        className="btn btn-outline btn-icon"
         style={{
           position: 'fixed',
-          bottom: 0,
-          left: 0,
-          right: 0,
-          height: 'calc(60px + env(safe-area-inset-bottom, 0px))',
-          background: '#1a1a1a',
-          borderTop: '1px solid #2a2a2a',
-          display: 'flex',
-          alignItems: 'flex-start',
-          zIndex: 50,
-          paddingBottom: 'env(safe-area-inset-bottom, 0px)',
+          top: 'calc(16px + env(safe-area-inset-top, 0px))',
+          right: 16,
+          zIndex: 95,
+          background: menuOpen ? 'var(--muted)' : 'rgba(9, 9, 11, 0.8)',
+          backdropFilter: 'blur(8px)',
+          WebkitBackdropFilter: 'blur(8px)',
         }}
       >
-        {TABS.map((tab) => {
-          const isActive = activeTab === tab.id;
-          return (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              style={{
-                flex: 1,
-                height: 60,
-                background: 'none',
-                border: 'none',
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: 4,
-                cursor: 'pointer',
-                color: isActive ? '#e8e8e8' : '#555',
-                padding: 0,
-                transition: 'color 0.15s ease',
-                position: 'relative',
-              }}
-            >
-              {/* Live session indicator — HOME tab only */}
-              {tab.id === 'home' && liveColour && (
-                <>
-                  <div style={{
-                    position: 'absolute', top: 0, left: '20%', right: '20%',
-                    height: 2, background: liveColour,
-                    borderRadius: '0 0 2px 2px',
-                    boxShadow: `0 0 6px ${liveColour}`,
-                  }} />
-                  <div style={{
-                    position: 'absolute', top: 6, right: 10,
-                    width: 5, height: 5, borderRadius: '50%',
-                    background: liveColour,
-                    boxShadow: `0 0 5px ${liveColour}`,
-                  }} />
-                </>
-              )}
-              {tab.icon(isActive)}
-              <span
-                style={{
-                  fontSize: 9,
-                  fontFamily: 'var(--font)',
-                  fontWeight: isActive ? 700 : 400,
-                  letterSpacing: '0.08em',
-                  color: isActive ? '#e8e8e8' : '#555',
-                }}
-              >
-                {tab.label}
-              </span>
-            </button>
-          );
-        })}
-      </div>
+        <svg {...ICON} width={18} height={18}>
+          {menuOpen
+            ? <path d="M18 6 6 18M6 6l12 12" />
+            : <path d="M4 6h16M4 12h16M4 18h16" />}
+        </svg>
+        {/* Live session indicator */}
+        {liveColour && !menuOpen && (
+          <span style={{
+            position: 'absolute', top: -3, right: -3,
+            width: 9, height: 9, borderRadius: '50%',
+            background: liveColour,
+            boxShadow: `0 0 6px ${liveColour}`,
+            border: '2px solid var(--bg)',
+          }} />
+        )}
+      </button>
+
+      {/* Menu overlay */}
+      {menuOpen && (
+        <>
+          <div
+            onClick={() => setMenuOpen(false)}
+            style={{
+              position: 'fixed', inset: 0,
+              background: 'rgba(0,0,0,0.5)',
+              zIndex: 90,
+            }}
+          />
+          <nav
+            style={{
+              position: 'fixed',
+              top: 'calc(60px + env(safe-area-inset-top, 0px))',
+              right: 16,
+              minWidth: 200,
+              background: 'var(--card)',
+              border: '1px solid var(--border)',
+              borderRadius: 'var(--radius-lg)',
+              padding: 4,
+              zIndex: 94,
+              boxShadow: 'var(--shadow-md)',
+              animation: 'menuIn 0.15s ease-out',
+              transformOrigin: 'top right',
+            }}
+          >
+            {TABS.map((tab) => {
+              const isActive = activeTab === tab.id;
+              return (
+                <button
+                  key={tab.id}
+                  className="menu-item"
+                  data-active={isActive}
+                  onClick={() => selectTab(tab.id)}
+                >
+                  <span style={{ display: 'flex', color: isActive ? 'var(--fg)' : 'var(--fg-subtle)' }}>{tab.icon}</span>
+                  <span style={{ flex: 1 }}>{tab.label}</span>
+                  {tab.id === 'home' && liveColour && (
+                    <span style={{
+                      width: 6, height: 6, borderRadius: '50%',
+                      background: liveColour,
+                      boxShadow: `0 0 5px ${liveColour}`,
+                    }} />
+                  )}
+                </button>
+              );
+            })}
+          </nav>
+        </>
+      )}
     </div>
   );
 }

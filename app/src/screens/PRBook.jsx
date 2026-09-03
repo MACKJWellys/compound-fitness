@@ -5,7 +5,7 @@ const SECTIONS = [
   {
     key: 'PUSH',
     label: 'PUSH',
-    colour: '#E8634A',
+    colour: '#C41E2E',
     exercises: [
       '30° DB Incline Bench',
       'Flat Barbell Bench Press',
@@ -24,7 +24,7 @@ const SECTIONS = [
   {
     key: 'PULL',
     label: 'PULL',
-    colour: '#4A90D9',
+    colour: '#4361EE',
     exercises: [
       'Weighted Pull-ups',
       'Pull-ups (Bodyweight Volume)',
@@ -44,7 +44,7 @@ const SECTIONS = [
   {
     key: 'LEGS',
     label: 'LEGS',
-    colour: '#5BBD72',
+    colour: '#0F8F60',
     exercises: [
       'Zercher Squat',
       'Leg Press',

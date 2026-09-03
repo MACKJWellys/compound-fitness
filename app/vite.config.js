@@ -10,14 +10,16 @@ export default defineConfig({
       registerType: 'autoUpdate',
       manifest: {
         name: 'Compound Fitness',
-        short_name: 'CF',
+        short_name: 'Compound',
         description: 'Summer 2026 PPL Gym Tracker',
-        theme_color: '#111111',
-        background_color: '#111111',
+        theme_color: '#09090b',
+        background_color: '#09090b',
         display: 'standalone',
         orientation: 'portrait',
         icons: [
-          { src: 'icon.svg', sizes: 'any', type: 'image/svg+xml', purpose: 'any maskable' },
+          { src: 'icon.svg', sizes: 'any', type: 'image/svg+xml', purpose: 'any' },
+          { src: 'icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any maskable' },
+          { src: 'icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any maskable' },
         ],
       },
       workbox: {

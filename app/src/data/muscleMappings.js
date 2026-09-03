@@ -37,6 +37,12 @@ export const MUSCLE_MAPPINGS = {
   'Hip Thrust': { primary: ['Glutes'], secondary: ['Hamstrings'] },
   'Bulgarian Split Squat': { primary: ['Quads', 'Glutes'], secondary: [] },
   'Oblique Cable Crunch': { primary: ['Obliques'], secondary: [] },
+  // Freestyle quick-adds
+  'Pull Ups': { primary: ['Upper Back / Lats'], secondary: ['Biceps'] },
+  'Overhead Press': { primary: ['Front Delts'], secondary: ['Triceps'] },
+  'Bench': { primary: ['Chest'], secondary: ['Front Delts', 'Triceps'] },
+  'Squats': { primary: ['Quads'], secondary: ['Glutes'] },
+  'Delt Raises': { primary: ['Side Delts'], secondary: [] },
 };
 
 // Weekly set totals if all 6 sessions are completed, per muscle group:

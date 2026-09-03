@@ -92,9 +92,9 @@ export default function Settings() {
       {status && (
         <div style={{
           padding: '10px 14px', borderRadius: 8, marginBottom: 16,
-          background: status.type === 'ok' ? '#5BBD7218' : '#E8634A18',
-          border: `1px solid ${status.type === 'ok' ? '#5BBD7244' : '#E8634A44'}`,
-          color: status.type === 'ok' ? '#5BBD72' : '#E8634A',
+          background: status.type === 'ok' ? '#0F8F6018' : '#C41E2E18',
+          border: `1px solid ${status.type === 'ok' ? '#0F8F6044' : '#C41E2E44'}`,
+          color: status.type === 'ok' ? '#0F8F60' : '#C41E2E',
           fontSize: 12,
         }}>
           {status.msg}

@@ -17,7 +17,7 @@ function getMuscleColour(muscleKey, weeklyVolume, volumeTargets) {
   const ratio = sets / target;
   if (ratio < 0.5) return '#4a5a3a';
   if (ratio < 1.0) return '#c8b400';
-  if (ratio < 1.2) return '#5BBD72';
+  if (ratio < 1.2) return '#0F8F60';
   return '#F0A500';
 }
 

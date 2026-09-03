@@ -25,8 +25,8 @@ function ExerciseCard({ exercise }) {
                 <span
                   style={{
                     fontSize: 9,
-                    color: '#E8634A',
-                    border: '1px solid #E8634A44',
+                    color: '#C41E2E',
+                    border: '1px solid #C41E2E44',
                     borderRadius: 3,
                     padding: '1px 5px',
                     letterSpacing: '0.08em',

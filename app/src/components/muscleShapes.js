@@ -115,6 +115,6 @@ export const MUSCLE_SHAPES = [
 
 // Static body parts (head, neck) — rendered in overlay but never animated
 export const STATIC_SHAPES = [
-  { tag: 'ellipse', cx: 100, cy: 26, rx: 19, ry: 23, fill: '#252525', stroke: '#444', strokeWidth: '1.5' },
-  { tag: 'path', d: 'M93 47 L93 62 Q100 65 107 62 L107 47 Q100 50 93 47Z', fill: '#252525', stroke: '#333', strokeWidth: '1' },
+  { tag: 'ellipse', cx: 100, cy: 26, rx: 19, ry: 23, fill: '#27272a', stroke: '#3f3f46', strokeWidth: '1.5' },
+  { tag: 'path', d: 'M93 47 L93 62 Q100 65 107 62 L107 47 Q100 50 93 47Z', fill: '#27272a', stroke: '#3f3f46', strokeWidth: '1' },
 ];

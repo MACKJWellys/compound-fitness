@@ -6,7 +6,7 @@ export const DAYS = [
   {
     name: 'Push A',
     subtitle: 'Upper Chest & Delts Focus',
-    colour: '#E8634A',
+    colour: '#C41E2E',
     exercises: [
       { name: '30° DB Incline Bench', priority: true, sets: '4', reps: '8–10', rest: '2–3 min', note: "Primary press. Start at 26kg DBs. Add 2kg when you hit 4×10. Control the eccentric for 2–3s." },
       { name: 'Seated DB OHP', priority: false, sets: '3', reps: '8–10', rest: '2 min', note: "Start at 20kg DBs. You've hit 22s×8 before — build back to that for 3×10, then move up." },
@@ -20,7 +20,7 @@ export const DAYS = [
   {
     name: 'Pull A',
     subtitle: 'Horizontal Pull & Biceps',
-    colour: '#4A90D9',
+    colour: '#4361EE',
     exercises: [
       { name: 'Weighted Pull-ups', priority: true, sets: '4', reps: '5–6', rest: '2–3 min', note: "Your best lift. You hit 20kg×4-5 back in Dec '25 — start at 12.5kg×6 and rebuild. Aim for 17.5kg×5 by week 12. Full dead hang to chest-to-bar." },
       { name: 'Chest-Supported BB Row', priority: true, sets: '4', reps: '8–10', rest: '2 min', note: "Your favourite pull. You've been doing this since session 1. Hit 60×8 recently — build to 70×10. 1s pause at contraction, focus on mid-back squeeze." },
@@ -35,7 +35,7 @@ export const DAYS = [
   {
     name: 'Legs A',
     subtitle: 'Quad Focus',
-    colour: '#5BBD72',
+    colour: '#0F8F60',
     exercises: [
       { name: 'Lying Leg Curl', priority: true, sets: '4', reps: '10–12', rest: '60s', note: "First on Legs A to hit hamstrings fresh. 4 sets — slow eccentric, full range. Start at 30kg, build to 40kg×12. Hamstrings on both leg days now means real frequency." },
       { name: 'Zercher Squat', priority: true, sets: '4', reps: '8–10', rest: '3 min', note: "You've been Zerchering consistently since Oct '25 and hit 90×8. You even repped 70×16 and 63×18 in Dec. Build to 100×8 by week 12. If your gym gets a rack, back squats are an option — but Zerchers are working." },
@@ -50,7 +50,7 @@ export const DAYS = [
   {
     name: 'Push B',
     subtitle: 'Flat Press & Shoulders',
-    colour: '#E8634A',
+    colour: '#C41E2E',
     exercises: [
       { name: 'Flat Barbell Bench Press', priority: true, sets: '4', reps: '6–8', rest: '3 min', note: "Secondary press day. You've stalled at 80–82.5kg. Stay at 75kg×8 and build to 4×8, then add 2.5kg. Get a spotter." },
       { name: 'DB Lateral Raises (Paused)', priority: true, sets: '4', reps: '12–15', rest: '60s', note: "1s pause at the top of every rep. Start at 7.5kg. Your logs show you jumping to 10–12kg and failing — stay lighter, own the movement." },
@@ -64,7 +64,7 @@ export const DAYS = [
   {
     name: 'Pull B',
     subtitle: 'Vertical Pull & Arms',
-    colour: '#4A90D9',
+    colour: '#4361EE',
     exercises: [
       { name: 'Pull-ups (Bodyweight Volume)', priority: false, sets: '3', reps: 'Max (aim 8–12)', rest: '2 min', note: "Unweighted today. Focus on perfect reps and total volume. Full range, no kipping." },
       { name: 'Close-Grip Cable Row', priority: true, sets: '4', reps: '10–12', rest: '2 min', note: "You hit 50×10 on these. Build to 55–60kg. V-handle, pull to navel, squeeze." },
@@ -79,7 +79,7 @@ export const DAYS = [
   {
     name: 'Legs B',
     subtitle: 'Hamstring & Glute Focus',
-    colour: '#5BBD72',
+    colour: '#0F8F60',
     exercises: [
       { name: 'Romanian Deadlift', priority: true, sets: '4', reps: '8–10', rest: '2–3 min', note: "You hit 70×10 in Jan and 55×12 with grip failing first in Dec '25. Use chalk or straps — don't let grip limit hamstring development. Progress to 80×10." },
       { name: 'Lying Leg Curl', priority: true, sets: '4', reps: '10–12', rest: '90s', note: "You did these once at 40×8. They need to be a staple. Build to 45kg×12." },
@@ -90,6 +90,23 @@ export const DAYS = [
       { name: 'Weighted Cable Crunch', priority: false, sets: '3', reps: '12–15', rest: '60s', note: "Kneeling cable crunches. Focus on curling ribs toward pelvis. Add weight weekly — you want thick abs, not just lean ones." },
     ],
   },
+];
+
+// ── Freestyle (off-programme) session ──
+export const FREESTYLE_INDEX = -1;
+export const FREESTYLE_SESSION = {
+  name: 'Freestyle',
+  subtitle: 'No programme · pick as you go',
+  colour: '#fafafa',
+  freestyle: true,
+  exercises: [],
+};
+export const FREESTYLE_QUICK_ADDS = [
+  { name: 'Pull Ups', sets: '3', reps: '8–12', rest: '2 min', restSeconds: 120, note: '', priority: false },
+  { name: 'Overhead Press', sets: '3', reps: '8–10', rest: '2 min', restSeconds: 120, note: '', priority: false },
+  { name: 'Bench', sets: '3', reps: '6–8', rest: '2 min', restSeconds: 120, note: '', priority: false },
+  { name: 'Squats', sets: '3', reps: '8–10', rest: '2 min', restSeconds: 120, note: '', priority: false },
+  { name: 'Delt Raises', sets: '3', reps: '12–15', rest: '60s', restSeconds: 60, note: '', priority: false },
 ];
 
 export const PROGRESSION = [

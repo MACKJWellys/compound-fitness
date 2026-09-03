@@ -6,3 +6,6 @@ node_modules
 .claude
 inject_data.js
 cf_backup.json
+
+# Personal data exports — never commit to the public repo
+compound-fitness-backup-*.json

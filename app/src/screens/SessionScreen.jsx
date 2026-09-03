@@ -2,8 +2,71 @@ import { useState, useCallback, useEffect, useRef } from 'react';
 import { getPRBook, addPREntry, saveSession, advanceNextSession, getSessionVolume, getWeeklyVolume, getVolumeTargets, saveActiveSession, getActiveSession, updateSession, deleteSession, getExerciseHistory } from '../data/storage';
 import { toDateStr } from '../utils/dateUtils';
 import MuscleIllustration from '../components/MuscleIllustration';
-import { DAYS } from '../data/programme';
+import { DAYS, FREESTYLE_QUICK_ADDS } from '../data/programme';
 import { MUSCLE_MAPPINGS } from '../data/muscleMappings';
+
+// ── design tokens ─────────────────────────────────────────────────────────────
+
+const T = {
+  fg: 'var(--fg)',
+  muted: 'var(--fg-muted)',
+  subtle: 'var(--fg-subtle)',
+  faint: 'var(--fg-faint)',
+  border: 'var(--border)',
+  card: 'var(--card)',
+  mutedBg: 'var(--muted)',
+  bg: 'var(--bg)',
+};
+const AMBER = '#F0A500';
+const DANGER = '#f87171';
+
+const I = { width: 16, height: 16, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 2, strokeLinecap: 'round', strokeLinejoin: 'round' };
+const Icon = {
+  back: <svg {...I}><path d="m15 18-6-6 6-6" /></svg>,
+  up: <svg {...I}><path d="m18 15-6-6-6 6" /></svg>,
+  down: <svg {...I}><path d="m6 9 6 6 6-6" /></svg>,
+  swap: <svg {...I}><path d="M8 3 4 7l4 4M4 7h16M16 21l4-4-4-4M20 17H4" /></svg>,
+  history: <svg {...I}><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></svg>,
+  trophy: <svg {...I}><path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0z" /><path d="M17 6h3v2a3 3 0 0 1-3 3M7 6H4v2a3 3 0 0 0 3 3" /></svg>,
+  plus: <svg {...I}><path d="M12 5v14M5 12h14" /></svg>,
+  check: <svg {...I} strokeWidth={2.5}><path d="M20 6 9 17l-5-5" /></svg>,
+  x: <svg {...I}><path d="M18 6 6 18M6 6l12 12" /></svg>,
+  trash: <svg {...I}><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6" /></svg>,
+  body: <svg {...I}><circle cx="12" cy="4.5" r="2.5" /><path d="M8 9.5h8l-1 5.5v6h-2.5v-5h-1v5H9v-6z" /></svg>,
+};
+
+// Pick readable text colour for a solid button of the given hex colour
+function textOn(hex) {
+  const m = /^#([0-9a-f]{6})$/i.exec(hex || '');
+  if (!m) return '#fff';
+  const n = parseInt(m[1], 16);
+  const r = (n >> 16) & 255, g = (n >> 8) & 255, b = n & 255;
+  const lum = (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
+  return lum > 0.6 ? '#09090b' : '#fff';
+}
+
+function IconBtn({ onClick, label, active, colour, children, style }) {
+  return (
+    <button
+      onClick={onClick}
+      aria-label={label}
+      title={label}
+      className="btn btn-ghost btn-icon"
+      style={{
+        width: 30, height: 30, borderRadius: 6,
+        color: active ? textOn(colour) : T.subtle,
+        background: active ? colour : undefined,
+        ...style,
+      }}
+    >
+      {children}
+    </button>
+  );
+}
+
+function SectionLabel({ children, style }) {
+  return <div style={{ fontSize: 12, fontWeight: 500, color: T.muted, marginBottom: 8, ...style }}>{children}</div>;
+}
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 
@@ -79,6 +142,8 @@ function useRestTimer() {
 
 // ── Set Row ───────────────────────────────────────────────────────────────────
 
+const SET_GRID = '22px 1fr 1fr 1.3fr 30px';
+
 function SetRow({ setNum, setData, colour, dimmed, onChange, isPR }) {
   const isLogged = setData.reps !== '' && setData.reps !== undefined && String(setData.reps).length > 0;
 
@@ -94,32 +159,21 @@ function SetRow({ setNum, setData, colour, dimmed, onChange, isPR }) {
     prevIsPRRef.current = isPR;
   }, [isPR]);
 
-  const inputBase = {
-    background: '#222',
-    border: '1px solid #2a2a2a',
-    borderRadius: 4,
-    color: dimmed ? '#333' : '#e8e8e8',
-    fontSize: 13,
-    fontFamily: 'var(--font)',
-    padding: '5px 6px',
-    outline: 'none',
-    width: '100%',
-    boxSizing: 'border-box',
-  };
+  const numInput = { height: 36, fontSize: 14, fontWeight: 500, textAlign: 'center', padding: '0 6px', width: '100%', color: dimmed ? T.faint : T.fg };
 
   return (
     <div style={{
       display: 'grid',
-      gridTemplateColumns: '18px 64px 56px 1fr 28px',
-      gap: 4,
-      marginBottom: 4,
+      gridTemplateColumns: SET_GRID,
+      gap: 6,
+      marginBottom: 6,
       alignItems: 'center',
-      opacity: dimmed ? 0.35 : 1,
-      borderRadius: 4,
-      boxShadow: glowing ? '0 0 10px 3px #F0A50055' : 'none',
-      transition: glowing ? 'none' : 'box-shadow 0.8s ease',
+      opacity: dimmed ? 0.45 : 1,
+      borderRadius: 8,
+      boxShadow: glowing ? `0 0 0 2px ${AMBER}88` : 'none',
+      transition: glowing ? 'none' : 'box-shadow 0.8s ease, opacity 0.2s ease',
     }}>
-      <div style={{ fontSize: 10, color: '#555', textAlign: 'right' }}>{setNum}</div>
+      <div className="num" style={{ fontSize: 12, color: T.subtle, textAlign: 'center' }}>{setNum}</div>
       <input
         type="number"
         min="0"
@@ -128,9 +182,11 @@ function SetRow({ setNum, setData, colour, dimmed, onChange, isPR }) {
         value={setData.weight}
         onChange={(e) => onChange('weight', e.target.value)}
         onKeyDown={(e) => { if (e.key === 'Enter') e.target.blur(); }}
-        style={inputBase}
+        className="input"
+        style={numInput}
         disabled={dimmed}
         inputMode="decimal"
+        aria-label={`Set ${setNum} weight`}
       />
       <input
         type="number"
@@ -139,26 +195,30 @@ function SetRow({ setNum, setData, colour, dimmed, onChange, isPR }) {
         value={setData.reps}
         onChange={(e) => onChange('reps', e.target.value)}
         onKeyDown={(e) => { if (e.key === 'Enter') e.target.blur(); }}
-        style={inputBase}
+        className="input"
+        style={numInput}
         disabled={dimmed}
         inputMode="numeric"
+        aria-label={`Set ${setNum} reps`}
       />
       <input
         type="text"
         placeholder=""
         value={setData.note}
         onChange={(e) => onChange('note', e.target.value)}
-        style={{ ...inputBase, fontSize: 11 }}
+        className="input"
+        style={{ ...numInput, fontFamily: 'var(--font-sans)', fontWeight: 400, fontSize: 13, textAlign: 'left', padding: '0 10px' }}
         disabled={dimmed}
+        aria-label={`Set ${setNum} note`}
       />
-      <div style={{
-        fontSize: isPR ? 8 : 12,
-        color: isPR ? '#F0A500' : isLogged ? colour : '#2a2a2a',
-        textAlign: 'center',
-        fontWeight: isPR ? 700 : 400,
-        letterSpacing: isPR ? '0.04em' : 0,
-      }}>
-        {isPR ? 'PR' : isLogged ? '✓' : '·'}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 36 }}>
+        {isPR ? (
+          <span className="badge num" style={{ height: 20, padding: '0 5px', fontSize: 10, fontWeight: 600, color: AMBER, background: `${AMBER}1a`, border: `1px solid ${AMBER}44` }}>PR</span>
+        ) : isLogged ? (
+          <span style={{ color: colour, display: 'flex' }}>{Icon.check}</span>
+        ) : (
+          <span style={{ width: 5, height: 5, borderRadius: '50%', background: T.faint }} />
+        )}
       </div>
     </div>
   );
@@ -202,66 +262,54 @@ function ExerciseCard({ exercise, colour, sets, onSetsChange, prBook, onOpenPRSh
     }
   }
 
-  const cardBg = exercise.priority ? `${colour}12` : '#1a1a1a';
-  const cardBorder = snapping ? `1px solid ${colour}` : exercise.priority ? `1px solid ${colour}40` : '1px solid #2a2a2a';
-  const cardShadow = snapping ? `0 0 14px 2px ${colour}44` : 'none';
+  const loggedCount = ensuredSets.filter((s) => { const r = parseInt(s.reps); return !isNaN(r) && r > 0; }).length;
 
   return (
-    <div style={{
-      background: cardBg,
-      border: cardBorder,
-      borderRadius: 10,
-      padding: '14px 14px 12px',
-      marginBottom: 10,
-      boxShadow: cardShadow,
-      transition: snapping ? 'none' : 'border 0.5s ease, box-shadow 0.5s ease',
-    }}>
+    <div
+      className="card"
+      style={{
+        padding: '14px 14px 10px',
+        marginBottom: 12,
+        borderColor: snapping || allComplete ? `${colour}66` : undefined,
+        boxShadow: snapping ? `0 0 0 1px ${colour}, 0 0 18px ${colour}55` : undefined,
+        transition: snapping ? 'none' : 'box-shadow 0.5s ease, border-color 0.5s ease',
+      }}
+    >
       {/* Header row */}
-      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, marginBottom: 4 }}>
-        <div style={{ flex: 1, cursor: 'pointer' }} onClick={() => setNoteExpanded((v) => !v)}>
-          <span style={{ fontSize: 14, fontWeight: 700, color: '#e8e8e8', lineHeight: 1.3 }}>
-            {exercise.name}
-          </span>
+      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+        <button
+          onClick={() => exercise.note && setNoteExpanded((v) => !v)}
+          style={{
+            flex: 1, minWidth: 0, textAlign: 'left', background: 'none', border: 'none', padding: 0,
+            fontFamily: 'var(--font-sans)', cursor: exercise.note ? 'pointer' : 'default',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+            <span style={{ fontSize: 15, fontWeight: 600, color: T.fg, lineHeight: 1.3, letterSpacing: '-0.01em' }}>
+              {exercise.name}
+            </span>
+            {exercise.priority && (
+              <span className="badge" style={{ height: 18, padding: '0 6px', fontSize: 10, fontWeight: 600, color: colour, background: `${colour}1a`, border: `1px solid ${colour}33` }}>Key</span>
+            )}
+          </div>
+          <div style={{ fontSize: 12, color: T.muted, marginTop: 3 }}>
+            {exercise.sets} sets × {exercise.reps}{exercise.rest ? ` · ${exercise.rest} rest` : ''}
+            {exercise.note && <span style={{ color: T.faint }}> · {noteExpanded ? 'hide note' : 'note'}</span>}
+          </div>
+        </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 1, flexShrink: 0, marginTop: -4, marginRight: -6 }}>
+          {onMoveUp && <IconBtn onClick={onMoveUp} label="Move up">{Icon.up}</IconBtn>}
+          {onMoveDown && <IconBtn onClick={onMoveDown} label="Move down">{Icon.down}</IconBtn>}
+          {onSubstitute && <IconBtn onClick={onSubstitute} label="Swap exercise">{Icon.swap}</IconBtn>}
+          {onOpenHistory && <IconBtn onClick={() => onOpenHistory(exercise)} label="History">{Icon.history}</IconBtn>}
+          <IconBtn onClick={() => onOpenPRSheet(exercise)} label="PR book">{Icon.trophy}</IconBtn>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
-          {onMoveUp && (
-            <button onClick={onMoveUp} style={{ background: 'none', border: '1px solid #2a2a2a', borderRadius: 3, color: '#555', fontSize: 11, padding: '2px 5px', cursor: 'pointer', lineHeight: 1, fontFamily: 'var(--font)' }}>↑</button>
-          )}
-          {onMoveDown && (
-            <button onClick={onMoveDown} style={{ background: 'none', border: '1px solid #2a2a2a', borderRadius: 3, color: '#555', fontSize: 11, padding: '2px 5px', cursor: 'pointer', lineHeight: 1, fontFamily: 'var(--font)' }}>↓</button>
-          )}
-          {onSubstitute && (
-            <button onClick={onSubstitute} style={{ background: 'none', border: '1px solid #2a2a2a', borderRadius: 3, color: '#555', fontSize: 9, padding: '2px 5px', cursor: 'pointer', letterSpacing: '0.04em', fontFamily: 'var(--font)' }}>SWAP</button>
-          )}
-          {exercise.priority && (
-            <span style={{ background: colour, color: '#fff', fontSize: 9, fontWeight: 700, letterSpacing: '0.08em', borderRadius: 3, padding: '2px 6px' }}>KEY</span>
-          )}
-          {onOpenHistory && (
-            <button
-              onClick={() => onOpenHistory(exercise)}
-              style={{ background: 'none', border: 'none', color: '#555', fontSize: 9, fontFamily: 'var(--font)', cursor: 'pointer', padding: '4px 6px', letterSpacing: '0.04em', minHeight: 32 }}
-            >
-              HIST
-            </button>
-          )}
-          <button
-            onClick={() => onOpenPRSheet(exercise)}
-            style={{ background: 'none', border: 'none', color: '#555', fontSize: 11, fontFamily: 'var(--font)', cursor: 'pointer', padding: '4px 6px', letterSpacing: '0.04em', minHeight: 32 }}
-          >
-            PR ▸
-          </button>
-        </div>
-      </div>
-
-      {/* Subtitle */}
-      <div style={{ fontSize: 11, color: '#555', marginBottom: 10 }}>
-        {exercise.sets} sets × {exercise.reps}{exercise.rest ? ` · ${exercise.rest} rest` : ''}
       </div>
 
       {/* Column headers */}
-      <div style={{ display: 'grid', gridTemplateColumns: '18px 64px 56px 1fr 20px', gap: 4, marginBottom: 4 }}>
-        {['#', 'KG', 'REPS', 'NOTE', ''].map((h, i) => (
-          <div key={i} style={{ fontSize: 9, color: '#444', letterSpacing: '0.08em' }}>{h}</div>
+      <div style={{ display: 'grid', gridTemplateColumns: SET_GRID, gap: 6, margin: '12px 0 4px' }}>
+        {['', 'kg', 'Reps', 'Note', ''].map((h, i) => (
+          <div key={i} style={{ fontSize: 11, fontWeight: 500, color: T.subtle, textAlign: i === 3 ? 'left' : 'center', paddingLeft: i === 3 ? 10 : 0 }}>{h}</div>
         ))}
       </div>
 
@@ -285,15 +333,53 @@ function ExerciseCard({ exercise, colour, sets, onSetsChange, prBook, onOpenPRSh
         );
       })}
 
+      {/* Mini progress */}
+      <div style={{ height: 2, background: T.mutedBg, borderRadius: 999, marginTop: 6 }}>
+        <div style={{ height: '100%', width: `${(loggedCount / maxSets) * 100}%`, background: colour, borderRadius: 999, transition: 'width 0.25s ease' }} />
+      </div>
+
       {/* Coaching note */}
       {noteExpanded && exercise.note && (
-        <div style={{ marginTop: 10, fontSize: 12, color: '#666', lineHeight: 1.5, borderTop: '1px solid #2a2a2a', paddingTop: 10 }}>
+        <div style={{ marginTop: 10, fontSize: 13, color: T.muted, lineHeight: 1.55, borderTop: `1px solid ${T.border}`, paddingTop: 10 }}>
           {exercise.note}
         </div>
       )}
     </div>
   );
 }
+
+// ── Bottom sheet shell ────────────────────────────────────────────────────────
+
+function Sheet({ title, subtitle, onClose, children, maxHeight = '75vh' }) {
+  return (
+    <>
+      <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 150 }} />
+      <div style={{
+        position: 'fixed', bottom: 0, left: 0, right: 0,
+        background: T.card,
+        borderTop: '1px solid var(--border-strong)',
+        borderRadius: '16px 16px 0 0', zIndex: 160,
+        maxHeight, overflowY: 'auto',
+        padding: '0 20px calc(28px + env(safe-area-inset-bottom, 0px))',
+        fontFamily: 'var(--font-sans)',
+        boxShadow: '0 -16px 48px rgba(0,0,0,0.55)',
+      }}>
+        <div style={{ display: 'flex', justifyContent: 'center', padding: '10px 0 14px' }}>
+          <div style={{ width: 36, height: 4, background: 'var(--muted-2)', borderRadius: 2 }} />
+        </div>
+        {title && <div style={{ fontSize: 16, fontWeight: 600, color: T.fg, letterSpacing: '-0.01em' }}>{title}</div>}
+        {subtitle && <div style={{ fontSize: 12, color: T.muted, marginTop: 2 }}>{subtitle}</div>}
+        <div style={{ marginTop: title || subtitle ? 16 : 0 }}>{children}</div>
+      </div>
+    </>
+  );
+}
+
+function FieldLabel({ children }) {
+  return <label style={{ display: 'block', fontSize: 12, fontWeight: 500, color: T.muted, marginBottom: 6 }}>{children}</label>;
+}
+
+const fieldInput = { height: 40, fontSize: 14, padding: '0 10px', width: '100%', fontFamily: 'var(--font-sans)' };
 
 // ── PR Bottom Sheet ───────────────────────────────────────────────────────────
 
@@ -305,9 +391,10 @@ function PRBottomSheet({ exercise, colour, onClose }) {
 
   const exPRs = prBook[exercise.name] || {};
   const repKeys = Object.keys(exPRs).map(Number).sort((a, b) => a - b);
+  const canSave = weightInput.trim() && repInput;
 
   function handleSavePR() {
-    if (!weightInput.trim() || !repInput) return;
+    if (!canSave) return;
     addPREntry(exercise.name, parseInt(repInput), weightInput.trim(), dateInput.trim() || undefined);
     setPrBook(getPRBook());
     setWeightInput('');
@@ -315,107 +402,71 @@ function PRBottomSheet({ exercise, colour, onClose }) {
     setRepInput('');
   }
 
-  const inputStyle = {
-    background: '#222', border: '1px solid #333', borderRadius: 4,
-    color: '#e8e8e8', fontSize: 12, fontFamily: 'var(--font)',
-    padding: '5px 8px', outline: 'none',
-  };
-
   return (
-    <>
-      <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 150 }} />
-      <div style={{
-        position: 'fixed', bottom: 0, left: 0, right: 0,
-        background: '#1a1a1a', borderTop: `2px solid ${colour}`,
-        borderRadius: '16px 16px 0 0', zIndex: 160,
-        maxHeight: '75vh', overflowY: 'auto',
-        padding: '0 20px 40px',
-      }}>
-        <div style={{ display: 'flex', justifyContent: 'center', padding: '12px 0 8px' }}>
-          <div style={{ width: 36, height: 4, background: '#333', borderRadius: 2 }} />
-        </div>
-        <div style={{ fontSize: 11, color: colour, letterSpacing: '0.12em', fontWeight: 700, marginBottom: 4 }}>
-          PR BOOK
-        </div>
-        <div style={{ fontSize: 14, fontWeight: 700, color: '#e8e8e8', marginBottom: 16 }}>
-          {exercise.name}
-        </div>
-
-        {repKeys.length === 0 ? (
-          <div style={{ fontSize: 12, color: '#444', marginBottom: 16 }}>No PRs logged yet</div>
-        ) : (
-          repKeys.map((rep) => {
-            const entries = (exPRs[rep] || []).slice(0, 6);
-            const best = entries.reduce((m, e) => Math.max(m, parseFloat(e.weight) || 0), 0);
-            return (
-              <div key={rep} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-                <span style={{ fontSize: 10, color: '#555', fontWeight: 700, minWidth: 18, textAlign: 'right', flexShrink: 0 }}>
-                  {rep}
-                </span>
-                <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
-                  {entries.map((entry, ci) => {
-                    const w = parseFloat(entry.weight) || 0;
-                    const isBest = w === best && best > 0;
-                    // Format date to dd.mm
-                    let dateLabel = '';
-                    if (entry.date) {
-                      const parts = entry.date.match(/(\d{4})-(\d{2})-(\d{2})/);
-                      if (parts) {
-                        dateLabel = `${parseInt(parts[3])}.${parseInt(parts[2])}`;
-                      } else {
-                        dateLabel = entry.date;
-                      }
-                    }
-                    return (
-                      <span key={ci} style={{
-                        background: isBest ? `${colour}22` : '#141414',
-                        border: `1px solid ${isBest ? colour + '55' : '#2a2a2a'}`,
-                        borderRadius: 4, padding: '3px 8px',
-                        fontSize: 11, color: isBest ? '#e8e8e8' : '#666',
-                      }}>
-                        {entry.weight}
-                        {dateLabel && <span style={{ fontSize: 9, color: '#444', marginLeft: 5 }}>{dateLabel}</span>}
-                      </span>
-                    );
-                  })}
-                </div>
+    <Sheet title={exercise.name} subtitle="PR book" onClose={onClose}>
+      {repKeys.length === 0 ? (
+        <div style={{ fontSize: 13, color: T.subtle, marginBottom: 16 }}>No PRs logged yet</div>
+      ) : (
+        repKeys.map((rep) => {
+          const entries = (exPRs[rep] || []).slice(0, 6);
+          const best = entries.reduce((m, e) => Math.max(m, parseFloat(e.weight) || 0), 0);
+          return (
+            <div key={rep} style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
+              <span className="num" style={{ fontSize: 12, color: T.subtle, minWidth: 28, flexShrink: 0 }}>
+                {rep} <span style={{ color: T.faint }}>×</span>
+              </span>
+              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                {entries.map((entry, ci) => {
+                  const w = parseFloat(entry.weight) || 0;
+                  const isBest = w === best && best > 0;
+                  let dateLabel = '';
+                  if (entry.date) {
+                    const parts = entry.date.match(/(\d{4})-(\d{2})-(\d{2})/);
+                    dateLabel = parts ? `${parseInt(parts[3])}.${parseInt(parts[2])}` : entry.date;
+                  }
+                  return (
+                    <span key={ci} className="badge num" style={{
+                      color: isBest ? T.fg : T.muted,
+                      border: `1px solid ${isBest ? colour + '66' : 'rgba(255,255,255,0.07)'}`,
+                      background: isBest ? `${colour}1a` : undefined,
+                    }}>
+                      {entry.weight}
+                      {dateLabel && <span style={{ fontSize: 10, color: T.subtle }}>{dateLabel}</span>}
+                    </span>
+                  );
+                })}
               </div>
-            );
-          })
-        )}
+            </div>
+          );
+        })
+      )}
 
-        <div style={{ borderTop: '1px solid #2a2a2a', paddingTop: 14, marginTop: 4 }}>
-          <div style={{ fontSize: 10, color: '#555', letterSpacing: '0.1em', marginBottom: 8 }}>LOG PR</div>
-          <div style={{ display: 'flex', gap: 6, alignItems: 'flex-end', flexWrap: 'wrap' }}>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-              <label style={{ fontSize: 9, color: '#444' }}>REPS</label>
-              <input type="number" min="1" value={repInput} onChange={(e) => setRepInput(e.target.value)}
-                style={{ ...inputStyle, width: 52 }} />
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-              <label style={{ fontSize: 9, color: '#444' }}>WEIGHT kg</label>
-              <input type="text" placeholder="82.5" value={weightInput} onChange={(e) => setWeightInput(e.target.value)}
-                style={{ ...inputStyle, width: 80 }} />
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-              <label style={{ fontSize: 9, color: '#444' }}>DATE (opt)</label>
-              <input type="text" placeholder="dd.mm" value={dateInput} onChange={(e) => setDateInput(e.target.value)}
-                style={{ ...inputStyle, width: 72 }} />
-            </div>
-            <button onClick={handleSavePR} disabled={!weightInput.trim() || !repInput}
-              style={{
-                background: colour, border: 'none', borderRadius: 4, color: '#fff',
-                fontSize: 11, fontFamily: 'var(--font)', fontWeight: 700,
-                letterSpacing: '0.06em', padding: '6px 14px',
-                cursor: weightInput.trim() && repInput ? 'pointer' : 'not-allowed',
-                opacity: weightInput.trim() && repInput ? 1 : 0.5,
-              }}>
-              SAVE PR
-            </button>
+      <div style={{ borderTop: `1px solid ${T.border}`, paddingTop: 16, marginTop: 8 }}>
+        <SectionLabel>Log a PR</SectionLabel>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.2fr 1fr', gap: 8, marginBottom: 10 }}>
+          <div>
+            <FieldLabel>Reps</FieldLabel>
+            <input type="number" min="1" inputMode="numeric" value={repInput} onChange={(e) => setRepInput(e.target.value)} className="input" style={fieldInput} />
+          </div>
+          <div>
+            <FieldLabel>Weight (kg)</FieldLabel>
+            <input type="text" inputMode="decimal" placeholder="82.5" value={weightInput} onChange={(e) => setWeightInput(e.target.value)} className="input" style={fieldInput} />
+          </div>
+          <div>
+            <FieldLabel>Date</FieldLabel>
+            <input type="text" placeholder="dd.mm" value={dateInput} onChange={(e) => setDateInput(e.target.value)} className="input" style={fieldInput} />
           </div>
         </div>
+        <button
+          onClick={handleSavePR}
+          disabled={!canSave}
+          className="btn btn-primary"
+          style={{ width: '100%', backgroundColor: colour, color: textOn(colour), opacity: canSave ? 1 : 0.45, cursor: canSave ? 'pointer' : 'not-allowed' }}
+        >
+          Save PR
+        </button>
       </div>
-    </>
+    </Sheet>
   );
 }
 
@@ -431,98 +482,75 @@ function HistoryBottomSheet({ exercise, colour, onClose }) {
   }
 
   return (
-    <>
-      <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 150 }} />
-      <div style={{
-        position: 'fixed', bottom: 0, left: 0, right: 0,
-        background: '#1a1a1a', borderTop: `2px solid ${colour}`,
-        borderRadius: '16px 16px 0 0', zIndex: 160,
-        maxHeight: '75vh', overflowY: 'auto',
-        padding: '0 20px 40px',
-      }}>
-        <div style={{ display: 'flex', justifyContent: 'center', padding: '12px 0 8px' }}>
-          <div style={{ width: 36, height: 4, background: '#333', borderRadius: 2 }} />
-        </div>
-        <div style={{ fontSize: 11, color: colour, letterSpacing: '0.12em', fontWeight: 700, marginBottom: 4 }}>
-          HISTORY
-        </div>
-        <div style={{ fontSize: 14, fontWeight: 700, color: '#e8e8e8', marginBottom: 16 }}>
-          {exercise.name}
-        </div>
+    <Sheet title={exercise.name} subtitle="Previous sessions" onClose={onClose}>
+      {history.length === 0 ? (
+        <div style={{ fontSize: 13, color: T.subtle }}>No previous sessions logged</div>
+      ) : (
+        history.map((entry, idx) => {
+          const loggedSets = (entry.sets || []).filter((s) => {
+            const r = parseInt(s.reps);
+            return !isNaN(r) && r > 0;
+          });
+          const totalKg = loggedSets.reduce((sum, s) => {
+            const w = parseFloat(s.weight) || 0;
+            const r = parseInt(s.reps) || 0;
+            return sum + w * r;
+          }, 0);
+          const bestSet = loggedSets.reduce((best, s) => {
+            const w = parseFloat(s.weight) || 0;
+            return w > (best.w || 0) ? { w, r: parseInt(s.reps) } : best;
+          }, {});
 
-        {history.length === 0 ? (
-          <div style={{ fontSize: 12, color: '#444', marginBottom: 16 }}>No previous sessions logged</div>
-        ) : (
-          history.map((entry, idx) => {
-            const loggedSets = (entry.sets || []).filter((s) => {
-              const r = parseInt(s.reps);
-              return !isNaN(r) && r > 0;
-            });
-            const totalKg = loggedSets.reduce((sum, s) => {
-              const w = parseFloat(s.weight) || 0;
-              const r = parseInt(s.reps) || 0;
-              return sum + w * r;
-            }, 0);
-            const bestSet = loggedSets.reduce((best, s) => {
-              const w = parseFloat(s.weight) || 0;
-              return w > (best.w || 0) ? { w, r: parseInt(s.reps) } : best;
-            }, {});
-
-            return (
-              <div key={idx} style={{
-                background: idx === 0 ? `${colour}10` : '#141414',
-                border: `1px solid ${idx === 0 ? colour + '30' : '#222'}`,
-                borderRadius: 8,
-                padding: '12px 14px',
-                marginBottom: 8,
-              }}>
-                {/* Header: date + session name */}
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <span style={{ fontSize: 12, fontWeight: 700, color: idx === 0 ? colour : '#999' }}>
-                      {formatDate(entry.date)}
-                    </span>
-                    <span style={{ fontSize: 10, color: '#555' }}>{entry.sessionName}</span>
-                  </div>
-                  {entry.rating && (
-                    <span style={{ fontSize: 10, color: '#555' }}>{entry.rating}/10</span>
-                  )}
+          return (
+            <div key={idx} style={{
+              background: T.bg,
+              border: `1px solid ${idx === 0 ? colour + '55' : T.border}`,
+              borderRadius: 'var(--radius-md)',
+              padding: '12px 14px',
+              marginBottom: 8,
+            }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
+                  <span style={{ fontSize: 13, fontWeight: 600, color: idx === 0 ? T.fg : T.muted }}>
+                    {formatDate(entry.date)}
+                  </span>
+                  <span style={{ fontSize: 12, color: T.subtle }}>{entry.sessionName}</span>
                 </div>
-
-                {/* Sets grid */}
-                <div style={{ display: 'grid', gridTemplateColumns: '18px 1fr', gap: '2px 6px' }}>
-                  {loggedSets.map((s, si) => (
-                    <div key={si} style={{ display: 'contents' }}>
-                      <div style={{ fontSize: 10, color: '#444', textAlign: 'right', lineHeight: '18px' }}>{si + 1}</div>
-                      <div style={{ fontSize: 12, color: '#ccc', lineHeight: '18px', display: 'flex', gap: 6, alignItems: 'center' }}>
-                        <span style={{ fontWeight: 600 }}>{s.weight}kg</span>
-                        <span style={{ color: '#666' }}>×</span>
-                        <span>{s.reps}</span>
-                        {s.note && <span style={{ fontSize: 10, color: '#555', fontStyle: 'italic' }}>{s.note}</span>}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-
-                {/* Summary line */}
-                <div style={{ display: 'flex', gap: 12, marginTop: 6, fontSize: 10, color: '#555' }}>
-                  <span>{loggedSets.length} sets</span>
-                  {totalKg > 0 && <span>{Math.round(totalKg)} kg total</span>}
-                  {bestSet.w > 0 && <span>top {bestSet.w}×{bestSet.r}</span>}
-                </div>
-
-                {/* Session note */}
-                {entry.note && (
-                  <div style={{ fontSize: 10, color: '#555', fontStyle: 'italic', marginTop: 6, borderTop: '1px solid #222', paddingTop: 6 }}>
-                    {entry.note}
-                  </div>
+                {entry.rating && (
+                  <span className="num" style={{ fontSize: 12, color: T.subtle }}>{entry.rating}/10</span>
                 )}
               </div>
-            );
-          })
-        )}
-      </div>
-    </>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '20px 1fr', gap: '2px 8px' }}>
+                {loggedSets.map((s, si) => (
+                  <div key={si} style={{ display: 'contents' }}>
+                    <div className="num" style={{ fontSize: 11, color: T.faint, textAlign: 'right', lineHeight: '20px' }}>{si + 1}</div>
+                    <div className="num" style={{ fontSize: 13, color: T.fg, lineHeight: '20px', display: 'flex', gap: 6, alignItems: 'center' }}>
+                      <span style={{ fontWeight: 500 }}>{s.weight}kg</span>
+                      <span style={{ color: T.faint }}>×</span>
+                      <span>{s.reps}</span>
+                      {s.note && <span style={{ fontSize: 11, color: T.subtle, fontFamily: 'var(--font-sans)' }}>{s.note}</span>}
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="num" style={{ display: 'flex', gap: 12, marginTop: 8, fontSize: 11, color: T.subtle }}>
+                <span>{loggedSets.length} sets</span>
+                {totalKg > 0 && <span>{Math.round(totalKg)} kg total</span>}
+                {bestSet.w > 0 && <span>top {bestSet.w}×{bestSet.r}</span>}
+              </div>
+
+              {entry.note && (
+                <div style={{ fontSize: 12, color: T.subtle, marginTop: 8, borderTop: `1px solid ${T.border}`, paddingTop: 8 }}>
+                  {entry.note}
+                </div>
+              )}
+            </div>
+          );
+        })
+      )}
+    </Sheet>
   );
 }
 
@@ -536,7 +564,6 @@ const MUSCLE_GROUP_ORDER = [
 ];
 
 function getGroupedExercises(priorityMuscle) {
-  // Build unique exercise list from programme
   const exerciseMap = {};
   DAYS.forEach((day) => {
     day.exercises.forEach((ex) => {
@@ -544,7 +571,6 @@ function getGroupedExercises(priorityMuscle) {
     });
   });
 
-  // Group by primary muscle using MUSCLE_MAPPINGS
   const groups = {};
   Object.entries(exerciseMap).forEach(([name, ex]) => {
     const mapping = MUSCLE_MAPPINGS[name];
@@ -553,7 +579,6 @@ function getGroupedExercises(priorityMuscle) {
     groups[group].push(ex);
   });
 
-  // Sort groups: priority muscle first, then standard order
   const orderedGroups = [];
   const order = priorityMuscle
     ? [priorityMuscle, ...MUSCLE_GROUP_ORDER.filter((g) => g !== priorityMuscle)]
@@ -561,7 +586,6 @@ function getGroupedExercises(priorityMuscle) {
   order.forEach((g) => {
     if (groups[g]) orderedGroups.push({ group: g, exercises: groups[g] });
   });
-  // Add any remaining groups not in the standard order
   Object.keys(groups).forEach((g) => {
     if (!orderedGroups.find((og) => og.group === g)) {
       orderedGroups.push({ group: g, exercises: groups[g] });
@@ -575,6 +599,34 @@ function getPrimaryMuscle(exerciseName) {
   return mapping?.primary?.[0] || null;
 }
 
+function GroupedExerciseList({ grouped, priorityMuscle, colour, disabledName, onPick }) {
+  return grouped.map(({ group, exercises }) => (
+    <div key={group}>
+      <div style={{
+        fontSize: 12, fontWeight: 500,
+        color: group === priorityMuscle ? colour : T.subtle,
+        padding: '12px 0 4px',
+        borderTop: `1px solid ${T.border}`,
+      }}>
+        {group}
+      </div>
+      {exercises.map((ex) => {
+        const disabled = ex.name === disabledName;
+        return (
+          <button
+            key={ex.name}
+            onClick={() => !disabled && onPick(ex)}
+            className="menu-item"
+            style={{ color: disabled ? T.faint : T.fg, cursor: disabled ? 'default' : 'pointer', padding: '0 8px' }}
+          >
+            {ex.name}
+          </button>
+        );
+      })}
+    </div>
+  ));
+}
+
 // ── Substitute Sheet ──────────────────────────────────────────────────────────
 
 function SubstituteSheet({ colour, currentExercise, onSelect, onClose }) {
@@ -582,49 +634,9 @@ function SubstituteSheet({ colour, currentExercise, onSelect, onClose }) {
   const grouped = getGroupedExercises(priorityMuscle);
 
   return (
-    <>
-      <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 150 }} />
-      <div style={{
-        position: 'fixed', bottom: 0, left: 0, right: 0,
-        background: '#1a1a1a', borderTop: `2px solid ${colour}`,
-        borderRadius: '16px 16px 0 0', zIndex: 160,
-        maxHeight: '70vh', overflowY: 'auto',
-        padding: '0 20px 40px',
-      }}>
-        <div style={{ display: 'flex', justifyContent: 'center', padding: '12px 0 8px' }}>
-          <div style={{ width: 36, height: 4, background: '#333', borderRadius: 2 }} />
-        </div>
-        <div style={{ fontSize: 11, color: '#888', letterSpacing: '0.1em', marginBottom: 4 }}>SELECT SUBSTITUTE</div>
-        {currentExercise && (
-          <div style={{ fontSize: 10, color: '#444', marginBottom: 14 }}>
-            Replacing {currentExercise.name}
-          </div>
-        )}
-        {grouped.map(({ group, exercises }) => (
-          <div key={group}>
-            <div style={{
-              fontSize: 9, color: group === priorityMuscle ? colour : '#555',
-              letterSpacing: '0.12em', fontWeight: 700,
-              padding: '10px 0 6px',
-              borderTop: '1px solid #222',
-            }}>
-              {group.toUpperCase()}
-            </div>
-            {exercises.map((ex) => (
-              <button key={ex.name} onClick={() => onSelect(ex)} style={{
-                display: 'block', width: '100%', textAlign: 'left',
-                background: 'none', border: 'none', borderBottom: '1px solid #1a1a1a',
-                color: ex.name === currentExercise?.name ? '#444' : '#e8e8e8',
-                fontSize: 13, fontFamily: 'var(--font)',
-                padding: '8px 0 8px 12px', cursor: ex.name === currentExercise?.name ? 'default' : 'pointer',
-              }}>
-                {ex.name}
-              </button>
-            ))}
-          </div>
-        ))}
-      </div>
-    </>
+    <Sheet title="Swap exercise" subtitle={currentExercise ? `Replacing ${currentExercise.name}` : null} onClose={onClose} maxHeight="70vh">
+      <GroupedExerciseList grouped={grouped} priorityMuscle={priorityMuscle} colour={colour} disabledName={currentExercise?.name} onPick={onSelect} />
+    </Sheet>
   );
 }
 
@@ -638,6 +650,7 @@ function AddExerciseSheet({ colour, onAdd, onClose }) {
   const [muscleGroup, setMuscleGroup] = useState('');
 
   const grouped = getGroupedExercises(null);
+  const canAdd = name.trim() && muscleGroup;
 
   function handlePickExercise(ex) {
     onAdd({
@@ -653,8 +666,7 @@ function AddExerciseSheet({ colour, onAdd, onClose }) {
   }
 
   function handleAddCustom() {
-    if (!name.trim() || !muscleGroup) return;
-    // Add to MUSCLE_MAPPINGS at runtime so volume tracks immediately
+    if (!canAdd) return;
     if (!MUSCLE_MAPPINGS[name.trim()]) {
       MUSCLE_MAPPINGS[name.trim()] = { primary: [muscleGroup], secondary: [] };
     }
@@ -670,115 +682,59 @@ function AddExerciseSheet({ colour, onAdd, onClose }) {
     onClose();
   }
 
-  const inputStyle = {
-    background: '#222', border: '1px solid #2a2a2a', borderRadius: 4,
-    color: '#e8e8e8', fontSize: 13, fontFamily: 'var(--font)',
-    padding: '8px 10px', outline: 'none', width: '100%', boxSizing: 'border-box',
-  };
-
   return (
-    <>
-      <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 150 }} />
-      <div style={{
-        position: 'fixed', bottom: 0, left: 0, right: 0,
-        background: '#1a1a1a', borderTop: `2px solid ${colour}`,
-        borderRadius: '16px 16px 0 0', zIndex: 160,
-        maxHeight: '75vh', overflowY: 'auto',
-        padding: '0 20px 40px',
-      }}>
-        <div style={{ display: 'flex', justifyContent: 'center', padding: '12px 0 8px' }}>
-          <div style={{ width: 36, height: 4, background: '#333', borderRadius: 2 }} />
-        </div>
-        <div style={{ fontSize: 11, color: '#888', letterSpacing: '0.1em', marginBottom: 14 }}>ADD EXERCISE</div>
-
-        {!showCustom ? (
-          <>
-            {grouped.map(({ group, exercises }) => (
-              <div key={group}>
-                <div style={{
-                  fontSize: 9, color: '#555', letterSpacing: '0.12em', fontWeight: 700,
-                  padding: '10px 0 6px', borderTop: '1px solid #222',
-                }}>
-                  {group.toUpperCase()}
-                </div>
-                {exercises.map((ex) => (
-                  <button key={ex.name} onClick={() => handlePickExercise(ex)} style={{
-                    display: 'block', width: '100%', textAlign: 'left',
-                    background: 'none', border: 'none', borderBottom: '1px solid #1a1a1a',
-                    color: '#e8e8e8', fontSize: 13, fontFamily: 'var(--font)',
-                    padding: '8px 0 8px 12px', cursor: 'pointer',
-                  }}>
-                    {ex.name}
-                  </button>
-                ))}
-              </div>
-            ))}
-            <button onClick={() => setShowCustom(true)} style={{
-              width: '100%', background: 'none', border: '1px dashed #333',
-              borderRadius: 8, color: '#666', fontSize: 12,
-              fontFamily: 'var(--font)', letterSpacing: '0.08em',
-              padding: '12px 0', marginTop: 14, cursor: 'pointer',
-            }}>
-              + CUSTOM EXERCISE
-            </button>
-          </>
-        ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            <div>
-              <label style={{ fontSize: 9, color: '#444', letterSpacing: '0.08em' }}>EXERCISE NAME</label>
-              <input type="text" placeholder="e.g. Cable Face Pull" value={name}
-                onChange={(e) => setName(e.target.value)}
-                style={{ ...inputStyle, marginTop: 4 }} autoFocus />
-            </div>
-            <div>
-              <label style={{ fontSize: 9, color: '#444', letterSpacing: '0.08em' }}>MUSCLE GROUP</label>
-              <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginTop: 6 }}>
-                {MUSCLE_GROUP_ORDER.map((g) => (
-                  <button key={g} onClick={() => setMuscleGroup(g)} style={{
-                    background: muscleGroup === g ? colour : '#222',
-                    border: `1px solid ${muscleGroup === g ? colour : '#333'}`,
-                    borderRadius: 4, color: muscleGroup === g ? '#fff' : '#888',
-                    fontSize: 10, fontFamily: 'var(--font)', padding: '4px 8px',
-                    cursor: 'pointer',
+    <Sheet title={showCustom ? 'Custom exercise' : 'Add exercise'} subtitle={showCustom ? 'Name it and pick the muscle it trains' : 'From the programme, or make your own'} onClose={onClose}>
+      {!showCustom ? (
+        <>
+          <button onClick={() => setShowCustom(true)} className="btn btn-outline" style={{ width: '100%', marginBottom: 4 }}>
+            {Icon.plus}
+            Custom exercise
+          </button>
+          <GroupedExerciseList grouped={grouped} priorityMuscle={null} colour={colour} onPick={handlePickExercise} />
+        </>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+          <div>
+            <FieldLabel>Exercise name</FieldLabel>
+            <input type="text" placeholder="e.g. Cable Face Pull" value={name} onChange={(e) => setName(e.target.value)} className="input" style={fieldInput} autoFocus />
+          </div>
+          <div>
+            <FieldLabel>Muscle group</FieldLabel>
+            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+              {MUSCLE_GROUP_ORDER.map((g) => {
+                const active = muscleGroup === g;
+                return (
+                  <button key={g} onClick={() => setMuscleGroup(g)} className="badge tap" style={{
+                    height: 30, padding: '0 10px', cursor: 'pointer',
+                    background: active ? colour : undefined,
+                    borderColor: active ? colour : undefined,
+                    color: active ? textOn(colour) : T.muted,
                   }}>
                     {g}
                   </button>
-                ))}
-              </div>
-            </div>
-            <div style={{ display: 'flex', gap: 10 }}>
-              <div style={{ flex: 1 }}>
-                <label style={{ fontSize: 9, color: '#444', letterSpacing: '0.08em' }}>SETS</label>
-                <input type="number" min="1" value={sets} onChange={(e) => setSets(e.target.value)}
-                  style={{ ...inputStyle, marginTop: 4 }} />
-              </div>
-              <div style={{ flex: 1 }}>
-                <label style={{ fontSize: 9, color: '#444', letterSpacing: '0.08em' }}>REPS</label>
-                <input type="number" min="1" value={reps} onChange={(e) => setReps(e.target.value)}
-                  style={{ ...inputStyle, marginTop: 4 }} />
-              </div>
-            </div>
-            <div style={{ display: 'flex', gap: 8 }}>
-              <button onClick={handleAddCustom} disabled={!name.trim() || !muscleGroup} style={{
-                flex: 1, background: name.trim() && muscleGroup ? colour : '#333', border: 'none', borderRadius: 8,
-                color: '#fff', fontSize: 13, fontFamily: 'var(--font)', fontWeight: 700,
-                padding: '12px 0', cursor: name.trim() && muscleGroup ? 'pointer' : 'not-allowed',
-                opacity: name.trim() && muscleGroup ? 1 : 0.6, marginTop: 4,
-              }}>
-                ADD TO SESSION
-              </button>
-              <button onClick={() => setShowCustom(false)} style={{
-                background: 'none', border: '1px solid #333', borderRadius: 8,
-                color: '#666', fontSize: 13, fontFamily: 'var(--font)',
-                padding: '12px 16px', cursor: 'pointer', marginTop: 4,
-              }}>
-                BACK
-              </button>
+                );
+              })}
             </div>
           </div>
-        )}
-      </div>
-    </>
+          <div style={{ display: 'flex', gap: 10 }}>
+            <div style={{ flex: 1 }}>
+              <FieldLabel>Sets</FieldLabel>
+              <input type="number" min="1" inputMode="numeric" value={sets} onChange={(e) => setSets(e.target.value)} className="input" style={fieldInput} />
+            </div>
+            <div style={{ flex: 1 }}>
+              <FieldLabel>Reps</FieldLabel>
+              <input type="number" min="1" inputMode="numeric" value={reps} onChange={(e) => setReps(e.target.value)} className="input" style={fieldInput} />
+            </div>
+          </div>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button onClick={handleAddCustom} disabled={!canAdd} className="btn btn-primary" style={{ flex: 1, backgroundColor: colour, color: textOn(colour), opacity: canAdd ? 1 : 0.45, cursor: canAdd ? 'pointer' : 'not-allowed' }}>
+              Add to session
+            </button>
+            <button onClick={() => setShowCustom(false)} className="btn btn-outline">Back</button>
+          </div>
+        </div>
+      )}
+    </Sheet>
   );
 }
 
@@ -796,58 +752,53 @@ function SessionSummaryCard({ session, totalSets, totalKg, detectedPRs, onDismis
       onClick={onDismiss}
       style={{
         position: 'fixed', inset: 0, zIndex: 300,
-        background: '#0c0c0c',
+        background: T.bg,
         display: 'flex', flexDirection: 'column',
         alignItems: 'center', justifyContent: 'center',
-        fontFamily: 'var(--font)',
+        fontFamily: 'var(--font-sans)',
         cursor: 'pointer',
+        padding: 24,
       }}
     >
-      {/* Accent bar */}
-      <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 3, background: session.colour }} />
-
-      <div style={{ fontSize: 10, color: session.colour, letterSpacing: '0.22em', marginBottom: 12 }}>
-        SESSION COMPLETE
+      <div style={{ fontSize: 12, fontWeight: 500, color: T.muted, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 12 }}>
+        Session complete
       </div>
-      <div style={{ fontSize: 30, fontWeight: 700, color: '#e8e8e8', letterSpacing: '0.04em', marginBottom: 4 }}>
-        {session.name.toUpperCase()}
+      <div style={{ fontSize: 30, fontWeight: 600, color: T.fg, letterSpacing: '-0.02em', marginBottom: 4 }}>
+        {session.name}
       </div>
-      <div style={{ fontSize: 12, color: '#555', marginBottom: 40 }}>
+      <div style={{ fontSize: 13, color: T.subtle, marginBottom: 40 }}>
         {session.subtitle}
       </div>
 
       <div style={{ display: 'flex', gap: 48, marginBottom: detectedPRs.length > 0 ? 36 : 0 }}>
         <div style={{ textAlign: 'center' }}>
-          <div style={{ fontSize: 34, fontWeight: 700, color: '#e8e8e8', letterSpacing: '-0.01em' }}>{totalSets}</div>
-          <div style={{ fontSize: 9, color: '#444', letterSpacing: '0.14em', marginTop: 2 }}>SETS</div>
+          <div className="num" style={{ fontSize: 40, fontWeight: 600, color: T.fg, letterSpacing: '-0.02em', lineHeight: 1 }}>{totalSets}</div>
+          <div style={{ fontSize: 12, color: T.subtle, marginTop: 8 }}>sets</div>
         </div>
         {totalKg > 0 && (
           <div style={{ textAlign: 'center' }}>
-            <div style={{ fontSize: 34, fontWeight: 700, color: '#e8e8e8', letterSpacing: '-0.01em' }}>
+            <div className="num" style={{ fontSize: 40, fontWeight: 600, color: T.fg, letterSpacing: '-0.02em', lineHeight: 1 }}>
               {Math.round(totalKg).toLocaleString()}
             </div>
-            <div style={{ fontSize: 9, color: '#444', letterSpacing: '0.14em', marginTop: 2 }}>KG MOVED</div>
+            <div style={{ fontSize: 12, color: T.subtle, marginTop: 8 }}>kg moved</div>
           </div>
         )}
       </div>
 
       {detectedPRs.length > 0 && (
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
           {detectedPRs.map((pr, i) => (
-            <div key={i} style={{ fontSize: 11, color: '#F0A500', letterSpacing: '0.04em' }}>
-              ★ {pr.exerciseName} · {pr.weight}kg × {pr.reps}
+            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: AMBER }}>
+              {Icon.trophy}
+              <span>{pr.exerciseName}</span>
+              <span className="num" style={{ color: T.fg }}>{pr.weight}kg × {pr.reps}</span>
             </div>
           ))}
         </div>
       )}
 
-      {/* Drain bar */}
-      <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 2, background: '#1a1a1a' }}>
-        <div style={{
-          height: '100%',
-          background: session.colour,
-          animation: 'summaryDrain 2.5s linear forwards',
-        }} />
+      <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 2, background: T.mutedBg }}>
+        <div style={{ height: '100%', background: session.colour, animation: 'summaryDrain 2.5s linear forwards' }} />
       </div>
     </div>
   );
@@ -860,10 +811,8 @@ function CompletionModal({ session, sessionIndex, exercises, setsPerExercise, on
   const [rating, setRating] = useState(historySession?.rating ?? null);
   const [note, setNote] = useState(historySession?.note ?? '');
   const saveDateStr = historySession?.date || targetDateStr || toDateStr(new Date());
-  const saveDateLabel = new Date(`${saveDateStr}T12:00:00`).toLocaleDateString('en-GB', {
-    day: 'numeric',
-    month: 'short',
-  });
+  const saveDateLabel = new Date(`${saveDateStr}T12:00:00`).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+  const onColour = textOn(session.colour);
 
   function handleSave() {
     if (!rating) return;
@@ -891,10 +840,9 @@ function CompletionModal({ session, sessionIndex, exercises, setsPerExercise, on
         note: note.trim(),
         completedAt: targetDateStr ? toMiddayIso(saveDateStr) : new Date().toISOString(),
       });
-      if (!targetDateStr) {
+      if (!targetDateStr && !session.freestyle) {
         advanceNextSession();
       }
-      // Auto-detect and save new PRs
       const currentBook = getPRBook();
       const sessionBest = {};
       exercises.forEach((ex, exIdx) => {
@@ -921,7 +869,6 @@ function CompletionModal({ session, sessionIndex, exercises, setsPerExercise, on
         });
       });
 
-      // Compute summary stats
       let totalSets = 0;
       let totalKg = 0;
       exercises.forEach((ex, exIdx) => {
@@ -941,63 +888,102 @@ function CompletionModal({ session, sessionIndex, exercises, setsPerExercise, on
     onSave({});
   }
 
+  const title = isHistory ? 'Edit session' : targetDateStr ? 'Save workout' : 'Session complete';
+  const subtitle = isHistory ? 'Update sets, rating or notes' : `${session.name} · ${saveDateLabel} · rate it`;
+
   return (
     <div style={{
-      position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)',
+      position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(4px)', WebkitBackdropFilter: 'blur(4px)',
       zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20,
+      fontFamily: 'var(--font-sans)',
     }}>
-      <div style={{
-        background: '#1a1a1a', border: `1px solid ${session.colour}40`,
-        borderRadius: 12, padding: '28px 24px', width: '100%', maxWidth: 420,
-      }}>
-        <div style={{ fontSize: 20, fontWeight: 700, color: session.colour, letterSpacing: '0.04em', marginBottom: 6 }}>
-          {isHistory ? 'EDIT SESSION' : targetDateStr ? 'SAVE WORKOUT' : 'SESSION COMPLETE'}
+      <div className="card" style={{ padding: 22, width: '100%', maxWidth: 420, boxShadow: 'var(--shadow-md)' }}>
+        <div style={{ fontSize: 18, fontWeight: 600, color: T.fg, letterSpacing: '-0.01em', marginBottom: 4 }}>{title}</div>
+        <div style={{ fontSize: 13, color: T.muted, marginBottom: 20 }}>{subtitle}</div>
+
+        <FieldLabel>Rating</FieldLabel>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 6, marginBottom: 18 }}>
+          {Array.from({ length: 10 }, (_, i) => i + 1).map((n) => {
+            const active = rating === n;
+            return (
+              <button key={n} onClick={() => setRating(n)} className="btn btn-outline num" style={{
+                height: 38, padding: 0,
+                background: active ? session.colour : undefined,
+                borderColor: active ? session.colour : undefined,
+                color: active ? onColour : T.muted,
+                fontWeight: active ? 600 : 500,
+              }}>
+                {n}
+              </button>
+            );
+          })}
         </div>
-        <div style={{ fontSize: 13, color: '#555', marginBottom: 24 }}>
-          {session.name} · {isHistory ? 'Update sets, rating or notes' : 'Rate this session'}
+
+        <FieldLabel>Notes</FieldLabel>
+        <textarea
+          value={note}
+          onChange={(e) => setNote(e.target.value)}
+          placeholder="How did it feel? Any PRs?"
+          rows={3}
+          className="input"
+          style={{ width: '100%', fontFamily: 'var(--font-sans)', fontSize: 14, padding: '10px 12px', resize: 'vertical', marginBottom: 18, lineHeight: 1.5 }}
+        />
+
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button onClick={handleSave} disabled={!rating} className="btn btn-primary" style={{
+            flex: 1, backgroundColor: session.colour, color: onColour,
+            opacity: rating ? 1 : 0.45, cursor: rating ? 'pointer' : 'not-allowed',
+          }}>
+            {isHistory ? 'Save changes' : 'Save session'}
+          </button>
+          <button onClick={onCancel} className="btn btn-outline">Back</button>
         </div>
-        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 20 }}>
-          {Array.from({ length: 10 }, (_, i) => i + 1).map((n) => (
-            <button key={n} onClick={() => setRating(n)} style={{
-              width: 36, height: 36,
-              background: rating === n ? session.colour : '#111',
-              border: `1px solid ${rating === n ? session.colour : '#333'}`,
-              borderRadius: 5, color: rating === n ? '#fff' : '#666',
-              fontSize: 13, fontFamily: 'var(--font)',
-              fontWeight: rating === n ? 700 : 400, cursor: 'pointer',
+      </div>
+    </div>
+  );
+}
+
+// ── Freestyle quick-add ──────────────────────────────────────────────────────
+
+function FreestyleQuickAdd({ remaining, empty, onAdd }) {
+  if (remaining.length === 0) return null;
+
+  if (empty) {
+    return (
+      <div style={{ marginBottom: 12 }}>
+        <SectionLabel>Pick a movement</SectionLabel>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+          {remaining.map((q) => (
+            <button key={q.name} onClick={() => onAdd(q)} className="card tap" style={{
+              padding: '16px 14px', textAlign: 'left', cursor: 'pointer',
+              fontFamily: 'var(--font-sans)', color: T.fg,
             }}>
-              {n}
+              <div style={{ fontSize: 15, fontWeight: 600, letterSpacing: '-0.01em', marginBottom: 4 }}>{q.name}</div>
+              <div style={{ fontSize: 12, color: T.muted }}>{q.sets} × {q.reps}</div>
             </button>
           ))}
         </div>
-        <div style={{ fontSize: 11, color: '#555', letterSpacing: '0.08em', marginBottom: 6 }}>NOTES (OPTIONAL)</div>
-        <textarea value={note} onChange={(e) => setNote(e.target.value)}
-          placeholder="How did it feel? Any PRs?"
-          rows={3}
-          style={{
-            width: '100%', background: '#111', border: '1px solid #2a2a2a', borderRadius: 6,
-            color: '#e8e8e8', fontSize: 13, fontFamily: 'var(--font)',
-            padding: '10px 12px', outline: 'none', resize: 'vertical',
-            boxSizing: 'border-box', marginBottom: 20,
-          }}
-        />
-        <div style={{ display: 'flex', gap: 10 }}>
-          <button onClick={handleSave} disabled={!rating} style={{
-            flex: 1, background: rating ? session.colour : '#333', border: 'none',
-            borderRadius: 8, color: '#fff', fontSize: 13, fontFamily: 'var(--font)',
-            fontWeight: 700, letterSpacing: '0.08em', padding: '12px 0',
-            cursor: rating ? 'pointer' : 'not-allowed', opacity: rating ? 1 : 0.5,
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ marginBottom: 12 }}>
+      <SectionLabel>Quick add</SectionLabel>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+        {remaining.map((q) => (
+          <button key={q.name} onClick={() => onAdd(q)} className="card tap" style={{
+            display: 'flex', alignItems: 'center', gap: 10,
+            height: 46, padding: '0 8px 0 14px', cursor: 'pointer',
+            fontFamily: 'var(--font-sans)', color: T.fg, textAlign: 'left',
           }}>
-            {isHistory ? 'SAVE CHANGES' : 'SAVE SESSION'}
+            <span style={{ flex: 1, fontSize: 14, fontWeight: 500 }}>{q.name}</span>
+            <span style={{ fontSize: 12, color: T.subtle }}>{q.sets} × {q.reps}</span>
+            <span style={{ width: 30, height: 30, borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center', color: T.muted, background: T.mutedBg }}>
+              {Icon.plus}
+            </span>
           </button>
-          <button onClick={onCancel} style={{
-            background: 'none', border: '1px solid #333', borderRadius: 8,
-            color: '#666', fontSize: 13, fontFamily: 'var(--font)',
-            padding: '12px 20px', cursor: 'pointer',
-          }}>
-            BACK
-          </button>
-        </div>
+        ))}
       </div>
     </div>
   );
@@ -1005,8 +991,8 @@ function CompletionModal({ session, sessionIndex, exercises, setsPerExercise, on
 
 // ── Main Screen ───────────────────────────────────────────────────────────────
 
-// All programme exercises flat list — used to look up definitions for history exercises
-const allProgrammeExercises = DAYS.flatMap((d) => d.exercises);
+// All known exercise definitions — used to look up definitions for history / saved exercises
+const allProgrammeExercises = [...DAYS.flatMap((d) => d.exercises), ...FREESTYLE_QUICK_ADDS];
 
 export default function SessionScreen({ session, sessionIndex, onBack, onComplete, onDelete, historySession, targetDateStr }) {
   const isHistoryMode = !!historySession;
@@ -1016,7 +1002,7 @@ export default function SessionScreen({ session, sessionIndex, onBack, onComplet
     day: 'numeric',
     month: 'short',
   });
-  const headerMeta = isHistoryMode ? `HISTORY · ${displayDateLabel}` : targetDateStr ? `LOG FOR · ${displayDateLabel}` : null;
+  const headerMeta = isHistoryMode ? `History · ${displayDateLabel}` : targetDateStr ? `Log for ${displayDateLabel}` : null;
 
   const [exercises, setExercises] = useState(() => {
     if (isHistoryMode) {
@@ -1060,7 +1046,6 @@ export default function SessionScreen({ session, sessionIndex, onBack, onComplet
   const [muscleChipOpen, setMuscleChipOpen] = useState(false);
   const { timerSeconds, startTimer, stopTimer } = useRestTimer();
 
-  // Weekly volume base — loaded once at mount so we can detect mid-session target crossings
   const weeklyVolumeBase = useRef(() => {
     const rollingStart = new Date();
     rollingStart.setDate(rollingStart.getDate() - 6);
@@ -1068,11 +1053,9 @@ export default function SessionScreen({ session, sessionIndex, onBack, onComplet
     return getWeeklyVolume(rollingStart);
   });
   const volumeTargets = useRef(getVolumeTargets());
-  // Track which muscles have already pulsed this session so they only fire once
   const pulsedMuscles = useRef(new Set());
   const [pulsingMuscles, setPulsingMuscles] = useState([]);
 
-  // Compute session volume from current setsPerExercise
   const sessionExercisesWithSets = exercises.map((ex, i) => ({
     name: ex.name,
     sets: setsPerExercise[i] || [],
@@ -1084,7 +1067,6 @@ export default function SessionScreen({ session, sessionIndex, onBack, onComplet
     sets.some((s) => String(s.reps).length > 0 && s.reps !== '')
   ).length;
 
-  // Detect when a muscle crosses its weekly target mid-session (Feature 7)
   useEffect(() => {
     if (!muscleChipOpen) return;
     const base = weeklyVolumeBase.current();
@@ -1190,69 +1172,68 @@ export default function SessionScreen({ session, sessionIndex, onBack, onComplet
 
   if (!session) return null;
 
+  const colour = session.colour;
+  const onColour = textOn(colour);
+  const isFreestyle = !!session.freestyle;
+  const remainingQuickAdds = isFreestyle
+    ? FREESTYLE_QUICK_ADDS.filter((q) => !exercises.some((e) => e.name === q.name))
+    : [];
+  const progressPct = exercises.length > 0 ? (completedExercises / exercises.length) * 100 : 0;
+
   return (
     <div style={{
-      position: 'fixed', inset: 0, background: '#111111', zIndex: 100,
-      display: 'flex', flexDirection: 'column', fontFamily: 'var(--font)',
+      position: 'fixed', inset: 0, background: T.bg, zIndex: 100,
+      display: 'flex', flexDirection: 'column', fontFamily: 'var(--font-sans)', color: T.fg,
     }}>
       {/* ── Sticky Header ── */}
       <div style={{
-        position: 'sticky', top: 0, zIndex: 110, background: '#111111',
-        borderTop: `3px solid ${session.colour}`,
-        borderBottom: '1px solid #2a2a2a',
-        padding: '10px 16px 0',
+        position: 'sticky', top: 0, zIndex: 110,
+        background: 'rgba(9, 9, 11, 0.85)',
+        backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)',
+        borderBottom: `1px solid ${T.border}`,
+        padding: 'calc(12px + env(safe-area-inset-top, 0px)) 16px 0',
       }}>
-        {/* Row 1: session name + complete */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-          <div style={{ fontSize: 18, fontWeight: 700, color: session.colour, letterSpacing: '.05em', lineHeight: 1.2 }}>
-            {session.name.toUpperCase()}
-          </div>
-          <button onClick={handleComplete} style={{
-            background: session.colour, border: 'none', borderRadius: 6, color: '#fff',
-            fontSize: 11, fontFamily: 'var(--font)', fontWeight: 700,
-            letterSpacing: '.06em', padding: '7px 14px', cursor: 'pointer', flexShrink: 0,
-          }}>
-            {isHistoryMode ? 'SAVE CHANGES' : 'COMPLETE'}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <button onClick={onBack} aria-label="Back" className="btn btn-outline btn-icon" style={{ flexShrink: 0 }}>
+            {Icon.back}
           </button>
-        </div>
-        {/* Row 2: back + subtitle + muscles */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, paddingBottom: 10 }}>
-          <button onClick={onBack} style={{
-            background: 'none', border: '1px solid #2a2a2a', borderRadius: 6,
-            color: '#e8e8e8', padding: '4px 10px', fontSize: 10, fontFamily: 'var(--font)',
-            letterSpacing: '.06em', cursor: 'pointer', flexShrink: 0,
-          }}>← BACK</button>
-          <div style={{ flex: 1, minWidth: 0, fontSize: 10, color: '#555', letterSpacing: '.04em', lineHeight: 1.4 }}>
-            {session.subtitle} · {completedExercises}/{exercises.length}
-            {headerMeta && <span style={{ color: '#888', marginLeft: 8 }}>{headerMeta}</span>}
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 17, fontWeight: 600, letterSpacing: '-0.01em', lineHeight: 1.2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              {session.name}
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: T.muted, marginTop: 2, minWidth: 0 }}>
+              <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', minWidth: 0 }}>{headerMeta || session.subtitle}</span>
+              <span style={{ color: T.faint, flexShrink: 0 }}>·</span>
+              <span className="num" style={{ flexShrink: 0 }}>{completedExercises}/{exercises.length}</span>
+            </div>
           </div>
           {!isHistoryMode && (
-            <button onClick={() => setMuscleChipOpen((v) => !v)} style={{
-              background: muscleChipOpen ? session.colour : '#1e1e1e',
-              border: `1px solid ${session.colour}55`,
-              borderRadius: 16, color: muscleChipOpen ? '#fff' : session.colour,
-              fontSize: 9, fontFamily: 'var(--font)', fontWeight: 700,
-              letterSpacing: '.08em', padding: '4px 10px', cursor: 'pointer', flexShrink: 0,
-            }}>MUSCLES</button>
+            <IconBtn
+              onClick={() => setMuscleChipOpen((v) => !v)}
+              label="Muscles worked"
+              active={muscleChipOpen}
+              colour={colour}
+              style={{ width: 36, height: 36, borderRadius: 8, border: `1px solid ${muscleChipOpen ? colour : 'var(--border)'}`, background: muscleChipOpen ? colour : T.bg }}
+            >
+              {Icon.body}
+            </IconBtn>
           )}
+          <button onClick={handleComplete} className="btn btn-primary" style={{ height: 36, padding: '0 14px', fontSize: 13, backgroundColor: colour, color: onColour, flexShrink: 0 }}>
+            {isHistoryMode ? 'Save' : 'Complete'}
+          </button>
         </div>
         {/* Progress bar */}
-        <div style={{ height: 2, background: '#1e1e1e', margin: '0 -16px' }}>
-          <div style={{
-            height: '100%',
-            width: `${exercises.length > 0 ? (completedExercises / exercises.length) * 100 : 0}%`,
-            background: session.colour, opacity: 0.8,
-            transition: 'width 0.3s ease',
-          }} />
+        <div style={{ height: 3, background: T.mutedBg, margin: '12px -16px 0' }}>
+          <div style={{ height: '100%', width: `${progressPct}%`, background: colour, transition: 'width 0.3s ease' }} />
         </div>
       </div>
 
       {/* ── Muscle Illustration Panel ── */}
       {muscleChipOpen && (
         <div style={{
-          background: '#141414',
-          borderBottom: '1px solid #2a2a2a',
-          padding: '16px',
+          background: T.card,
+          borderBottom: `1px solid ${T.border}`,
+          padding: '12px 16px',
           display: 'flex',
           justifyContent: 'center',
         }}>
@@ -1267,33 +1248,21 @@ export default function SessionScreen({ session, sessionIndex, onBack, onComplet
       )}
 
       {/* ── Scrollable Exercise List ── */}
-      <div style={{ flex: 1, overflowY: 'auto', padding: '16px 16px 20px' }}>
+      <div style={{ flex: 1, overflowY: 'auto', padding: '16px 16px calc(28px + env(safe-area-inset-bottom, 0px))' }}>
         {isHistoryMode && (
           <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 12 }}>
-            <button
-              onClick={handleDeleteWorkout}
-              style={{
-                background: 'none',
-                border: '1px solid #6a2b2b',
-                borderRadius: 6,
-                color: '#d27a7a',
-                fontSize: 10,
-                fontFamily: 'var(--font)',
-                fontWeight: 700,
-                letterSpacing: '0.08em',
-                padding: '7px 10px',
-                cursor: 'pointer',
-              }}
-            >
-              DELETE
+            <button onClick={handleDeleteWorkout} className="btn btn-ghost" style={{ height: 34, padding: '0 10px', fontSize: 13, color: DANGER }}>
+              {Icon.trash}
+              Delete workout
             </button>
           </div>
         )}
+
         {exercises.map((exercise, i) => (
           <ExerciseCard
             key={`${exercise.name}-${i}`}
             exercise={exercise}
-            colour={session.colour}
+            colour={colour}
             sets={setsPerExercise[i] || []}
             onSetsChange={(newSets) => handleSetsChange(i, newSets)}
             prBook={prBook}
@@ -1306,49 +1275,40 @@ export default function SessionScreen({ session, sessionIndex, onBack, onComplet
           />
         ))}
 
+        {isFreestyle && !isHistoryMode && (
+          <FreestyleQuickAdd
+            remaining={remainingQuickAdds}
+            empty={exercises.length === 0}
+            onAdd={(q) => handleAddCustomExercise({ ...q, priority: false })}
+          />
+        )}
+
         {!isHistoryMode && (
-          <button
-            onClick={() => setShowCustomExercise(true)}
-            style={{
-              width: '100%', background: 'none', border: '1px dashed #2a2a2a',
-              borderRadius: 10, color: '#555', fontSize: 12,
-              fontFamily: 'var(--font)', letterSpacing: '0.08em',
-              padding: '12px 0', marginBottom: 10, cursor: 'pointer',
-            }}
-          >
-            + ADD EXERCISE
+          <button onClick={() => setShowCustomExercise(true)} className="btn btn-outline" style={{ width: '100%', height: 44, marginBottom: 12 }}>
+            {Icon.plus}
+            Add exercise
           </button>
         )}
 
-        <button onClick={handleComplete} style={{
-          width: '100%', background: session.colour, border: 'none', borderRadius: 10,
-          color: '#fff', fontSize: 14, fontFamily: 'var(--font)', fontWeight: 700,
-          letterSpacing: '0.1em', padding: '16px 0', marginTop: 10, cursor: 'pointer',
+        <button onClick={handleComplete} className="btn btn-primary" style={{
+          width: '100%', height: 48, fontSize: 15, marginTop: 4,
+          backgroundColor: colour, color: onColour,
         }}>
-          {isHistoryMode ? 'SAVE CHANGES' : 'COMPLETE SESSION'}
+          {isHistoryMode ? 'Save changes' : 'Complete session'}
         </button>
       </div>
 
-      {/* ── PR Bottom Sheet ── */}
       {prSheetExercise && (
-        <PRBottomSheet
-          exercise={prSheetExercise}
-          colour={session.colour}
-          onClose={() => setPrSheetExercise(null)}
-        />
+        <PRBottomSheet exercise={prSheetExercise} colour={colour} onClose={() => setPrSheetExercise(null)} />
       )}
 
       {historyExercise && (
-        <HistoryBottomSheet
-          exercise={historyExercise}
-          colour={session.colour}
-          onClose={() => setHistoryExercise(null)}
-        />
+        <HistoryBottomSheet exercise={historyExercise} colour={colour} onClose={() => setHistoryExercise(null)} />
       )}
 
       {substituteForIdx !== null && (
         <SubstituteSheet
-          colour={session.colour}
+          colour={colour}
           currentExercise={exercises[substituteForIdx]}
           onSelect={(ex) => handleSubstitute(substituteForIdx, ex)}
           onClose={() => setSubstituteForIdx(null)}
@@ -1356,14 +1316,9 @@ export default function SessionScreen({ session, sessionIndex, onBack, onComplet
       )}
 
       {showCustomExercise && (
-        <AddExerciseSheet
-          colour={session.colour}
-          onAdd={handleAddCustomExercise}
-          onClose={() => setShowCustomExercise(false)}
-        />
+        <AddExerciseSheet colour={colour} onAdd={handleAddCustomExercise} onClose={() => setShowCustomExercise(false)} />
       )}
 
-      {/* ── Session Summary Card ── */}
       {summaryData && (
         <SessionSummaryCard
           session={session}
@@ -1374,7 +1329,6 @@ export default function SessionScreen({ session, sessionIndex, onBack, onComplet
         />
       )}
 
-      {/* ── Completion Modal ── */}
       {showModal && (
         <CompletionModal
           session={session}
@@ -1390,36 +1344,25 @@ export default function SessionScreen({ session, sessionIndex, onBack, onComplet
 
       {/* Floating rest timer pill */}
       {timerSeconds !== null && !isHistoryMode && (
-        <div style={{
+        <div className="card" style={{
           position: 'fixed',
           bottom: 'calc(20px + env(safe-area-inset-bottom, 0px))',
           right: 16,
           zIndex: 120,
-          background: '#111',
-          border: `1px solid ${session.colour}66`,
-          borderRadius: 20,
-          padding: '8px 16px',
+          borderRadius: 999,
+          padding: '6px 6px 6px 16px',
           display: 'flex',
           alignItems: 'center',
           gap: 10,
-          boxShadow: `0 0 16px ${session.colour}22`,
+          boxShadow: 'var(--shadow-md)',
         }}>
-          <div style={{
-            width: 7, height: 7, borderRadius: '50%',
-            background: session.colour,
-            boxShadow: `0 0 6px ${session.colour}`,
-            flexShrink: 0,
-          }} />
-          <span style={{
-            color: session.colour, fontSize: 15, fontWeight: 700,
-            fontFamily: 'var(--font)', letterSpacing: '.04em',
-          }}>
+          <span style={{ fontSize: 12, color: T.muted }}>Rest</span>
+          <span className="num" style={{ color: colour === '#fafafa' ? T.fg : colour, fontSize: 16, fontWeight: 600, minWidth: 40 }}>
             {formatTime(timerSeconds)}
           </span>
-          <button
-            onClick={stopTimer}
-            style={{ color: '#444', fontSize: 14, cursor: 'pointer', padding: '4px 8px', lineHeight: 1, flexShrink: 0, background: 'none', border: 'none', fontFamily: 'var(--font)' }}
-          >✕</button>
+          <button onClick={stopTimer} aria-label="Stop timer" className="btn btn-ghost btn-icon" style={{ width: 28, height: 28, borderRadius: 999, color: T.subtle }}>
+            {Icon.x}
+          </button>
         </div>
       )}
     </div>

@@ -22,27 +22,28 @@ function getCalendarMonths() {
     months.push({ year: next.getFullYear(), month: next.getMonth() });
   }
 
-  return months;
+  return months.reverse();
 }
 
 const MONTHS = getCalendarMonths();
 
 const SESSION_COLOURS = {
-  'Push A': '#E8634A',
-  'Push B': '#E8634A',
-  'Pull A': '#4A90D9',
-  'Pull B': '#4A90D9',
-  'Legs A': '#5BBD72',
-  'Legs B': '#5BBD72',
+  'Push A': '#C41E2E',
+  'Push B': '#C41E2E',
+  'Pull A': '#4361EE',
+  'Pull B': '#4361EE',
+  'Legs A': '#0F8F60',
+  'Legs B': '#0F8F60',
+  Freestyle: '#fafafa',
 };
 
-const HABIT_COLOURS = ['#4A90D9', '#E8634A', '#E53935'];
+const HABIT_COLOURS = ['#4361EE', '#C41E2E', '#E53935'];
 const HABIT_KEYS = ['sauna', 'protein', 'private'];
 const DAY_HEADERS = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
 
 const HABIT_CONFIG_MODAL = [
-  { key: 'sauna', label: 'sauna', colour: '#4A90D9' },
-  { key: 'protein', label: 'protein', colour: '#E8634A' },
+  { key: 'sauna', label: 'sauna', colour: '#4361EE' },
+  { key: 'protein', label: 'protein', colour: '#C41E2E' },
   { key: 'private', label: null, colour: '#E53935' },
 ];
 
@@ -278,9 +279,9 @@ function DayEditModal({ dateStr, sessionEntry, dailyEntry, onSave, onClose, onVi
                 style={{
                   width: '100%',
                   background: 'none',
-                  border: '1px solid #E8634A55',
+                  border: '1px solid #C41E2E55',
                   borderRadius: 8,
-                  color: '#E8634A',
+                  color: '#C41E2E',
                   fontSize: 11,
                   fontFamily: 'var(--font)',
                   fontWeight: 700,
@@ -388,7 +389,7 @@ function DayEditModal({ dateStr, sessionEntry, dailyEntry, onSave, onClose, onVi
           onClick={handleSave}
           style={{
             width: '100%',
-            background: '#E8634A',
+            background: '#C41E2E',
             border: 'none',
             borderRadius: 8,
             color: '#fff',

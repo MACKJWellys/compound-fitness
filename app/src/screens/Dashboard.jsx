@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { DAYS, PROGRAMME_START } from '../data/programme';
+import { DAYS, PROGRAMME_START, FREESTYLE_SESSION } from '../data/programme';
 import {
   getSessionLog,
   getDailyLog,
@@ -23,20 +23,20 @@ const SESSION_ABBR = {
   'Push B': 'PB',
   'Pull B': 'PLB',
   'Legs B': 'LB',
+  Freestyle: 'FS',
 };
 
 const PHASE_COLOURS = {
-  Foundation: '#4A90D9',
-  Push: '#E8634A',
+  Foundation: '#4361EE',
+  Push: '#C41E2E',
   Peak: '#F0A500',
 };
 
 const HABIT_CONFIG = [
-  { key: 'sauna', label: 'sauna', colour: '#4A90D9' },
-  { key: 'protein', label: 'prot', colour: '#E8634A' },
+  { key: 'sauna', label: 'Sauna', colour: '#4361EE' },
+  { key: 'protein', label: 'Protein', colour: '#C41E2E' },
   { key: 'private', label: null, colour: '#E53935' },
 ];
-
 
 const MUSCLE_ORDER = [
   'Chest', 'Front Delts', 'Side Delts', 'Rear Delts',
@@ -44,6 +44,72 @@ const MUSCLE_ORDER = [
   'Abs', 'Obliques',
   'Quads', 'Hamstrings', 'Glutes', 'Calves',
 ];
+
+const T = {
+  fg: 'var(--fg)',
+  muted: 'var(--fg-muted)',
+  subtle: 'var(--fg-subtle)',
+  faint: 'var(--fg-faint)',
+  border: 'var(--border)',
+  card: 'var(--card)',
+  mutedBg: 'var(--muted)',
+};
+
+/* ── Small icons (lucide-style, currentColor) ── */
+function IconPlay({ size = 14 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" stroke="none">
+      <path d="M6 4.5v15a1 1 0 0 0 1.5.87l13-7.5a1 1 0 0 0 0-1.74l-13-7.5A1 1 0 0 0 6 4.5z" />
+    </svg>
+  );
+}
+function IconChevron({ open, size = 14 }) {
+  return (
+    <svg
+      width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+      style={{ transition: 'transform 0.15s ease', transform: open ? 'rotate(180deg)' : 'none' }}
+    >
+      <path d="m6 9 6 6 6-6" />
+    </svg>
+  );
+}
+function IconCheck({ size = 14 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M20 6 9 17l-5-5" />
+    </svg>
+  );
+}
+function IconTrend({ up, size = 12 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+      {up ? <path d="M12 19V5M5 12l7-7 7 7" /> : <path d="M12 5v14M19 12l-7 7-7-7" />}
+    </svg>
+  );
+}
+
+function Dot({ colour, size = 8, glow = false }) {
+  return (
+    <span
+      style={{
+        display: 'inline-block',
+        width: size, height: size, borderRadius: '50%',
+        background: colour,
+        boxShadow: glow ? `0 0 8px ${colour}` : 'none',
+        flexShrink: 0,
+      }}
+    />
+  );
+}
+
+function SectionLabel({ children, style }) {
+  return (
+    <div style={{ fontSize: 12, fontWeight: 500, color: T.muted, ...style }}>
+      {children}
+    </div>
+  );
+}
 
 function MuscleBreakdown({ weeklyVolume, volumeTargets }) {
   const entries = MUSCLE_ORDER
@@ -53,24 +119,68 @@ function MuscleBreakdown({ weeklyVolume, volumeTargets }) {
   if (entries.length === 0) return null;
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '3px 16px', marginTop: 14 }}>
-      {entries.map(({ muscle, sets, target }) => (
-        <div key={muscle} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-          <span style={{ fontSize: 10, color: '#555' }}>{muscle}</span>
-          <span style={{ fontSize: 10, color: sets >= target ? '#5BBD72' : sets > 0 ? '#c8b400' : '#333', fontWeight: 700 }}>
-            {sets}/{target}
-          </span>
-        </div>
+    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', columnGap: 20, marginTop: 16, borderTop: `1px solid ${T.border}`, paddingTop: 12 }}>
+      {entries.map(({ muscle, sets, target }) => {
+        const valueColour = sets >= target ? '#0F8F60' : sets > 0 ? '#E0B70A' : T.faint;
+        return (
+          <div key={muscle} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', height: 24 }}>
+            <span style={{ fontSize: 12, color: T.muted }}>{muscle}</span>
+            <span className="num" style={{ fontSize: 12, color: valueColour, fontWeight: 500 }}>
+              {sets}<span style={{ color: T.faint, fontWeight: 400 }}>/{target}</span>
+            </span>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+const pickerBtn = {
+  background: 'var(--bg)',
+  border: `1px solid ${T.border}`,
+  borderRadius: 'var(--radius-md)',
+  padding: '10px 12px',
+  textAlign: 'left',
+  fontFamily: 'var(--font-sans)',
+  cursor: 'pointer',
+};
+
+function SessionPicker({ onPick, onFreestyle }) {
+  return (
+    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginTop: 14, paddingTop: 14, borderTop: `1px solid ${T.border}` }}>
+      {DAYS.map((s, i) => (
+        <button key={s.name} className="tap" onClick={() => onPick(s, i)} style={pickerBtn}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, fontWeight: 600, color: T.fg }}>
+            <Dot colour={s.colour} size={7} />
+            {s.name}
+          </div>
+          <div style={{ fontSize: 11, color: T.subtle, marginTop: 3, paddingLeft: 15 }}>
+            {s.exercises.length} exercises
+          </div>
+        </button>
+      ))}
+      <button className="tap" onClick={onFreestyle} style={{ ...pickerBtn, gridColumn: '1 / -1', display: 'flex', alignItems: 'center', gap: 8 }}>
+        <Dot colour={FREESTYLE_SESSION.colour} size={7} />
+        <span style={{ fontSize: 13, fontWeight: 600, color: T.fg }}>{FREESTYLE_SESSION.name}</span>
+        <span style={{ fontSize: 11, color: T.subtle, marginLeft: 'auto' }}>{FREESTYLE_SESSION.subtitle}</span>
+      </button>
+    </div>
+  );
+}
+
+function ExerciseChips({ exercises }) {
+  return (
+    <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 16 }}>
+      {exercises.slice(0, 3).map((ex) => (
+        <span key={ex.name} className="badge">
+          {(ex.name || '').split(' ').slice(0, 3).join(' ')}
+        </span>
       ))}
     </div>
   );
 }
 
-function tintedBg(colour) {
-  return `color-mix(in srgb, ${colour} 8%, #111111)`;
-}
-
-function InProgressCard({ savedSession, onContinue, onStartNew, showSessionPicker, nextIdx, setNextIdx, setShowSessionPicker, onStartSession }) {
+function InProgressCard({ savedSession, onContinue, onStartNew, showSessionPicker, setNextIdx, setShowSessionPicker, onStartSession }) {
   const sessionDef = DAYS[savedSession.sessionIndex];
   const colour = sessionDef?.colour || '#e8e8e8';
 
@@ -78,124 +188,56 @@ function InProgressCard({ savedSession, onContinue, onStartNew, showSessionPicke
     Array.isArray(sets) && sets.some((s) => String(s.reps).length > 0 && s.reps !== '')
   ).length;
   const totalExercises = (savedSession.exercises || []).length;
+  const progress = totalExercises ? exercisesLogged / totalExercises : 0;
 
   return (
-    <div
-      style={{
-        background: tintedBg(colour),
-        border: `1px solid ${colour}55`,
-        borderRadius: 12,
-        padding: '16px 16px 14px',
-        marginBottom: 20,
-      }}
-    >
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-        <div style={{ fontSize: 10, color: colour, letterSpacing: '0.12em', fontWeight: 700 }}>
-          IN PROGRESS
+    <div className="card" style={{ padding: 16, marginBottom: 16 }}>
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap', marginBottom: 10, position: 'relative' }}>
+        <div style={{ fontSize: 18, fontWeight: 600, color: T.fg, letterSpacing: '-0.01em' }}>
+          {savedSession.sessionName}
         </div>
-        <div
-          style={{
-            width: 6, height: 6, borderRadius: '50%',
-            background: colour,
-            boxShadow: `0 0 6px ${colour}`,
-          }}
-        />
-      </div>
-      <div
-        style={{
-          fontSize: 20,
-          fontWeight: 700,
-          color: colour,
-          letterSpacing: '0.03em',
-          marginBottom: 4,
-        }}
-      >
-        {savedSession.sessionName}
-      </div>
-      <div style={{ fontSize: 12, color: '#888', marginBottom: 12 }}>
-        {exercisesLogged} of {totalExercises} exercises started
+        <div style={{ fontSize: 13, color: T.muted }}>
+          {exercisesLogged} of {totalExercises} started
+        </div>
       </div>
 
-      {/* Exercise progress chips */}
-      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 14 }}>
-        {(savedSession.exercises || []).slice(0, 3).map((ex) => (
-          <span key={ex.name} style={{
-            background: `${colour}12`, border: `1px solid ${colour}28`,
-            borderRadius: 4, color: '#888', fontSize: 9, padding: '2px 7px',
-          }}>
-            {(ex.name || '').split(' ').slice(0, 3).join(' ')}
-          </span>
-        ))}
-        {(savedSession.exercises || []).length > 3 && (
-          <span style={{ background: '#111', border: '1px solid #2a2a2a', borderRadius: 4, color: '#444', fontSize: 9, padding: '2px 7px' }}>
-            +{savedSession.exercises.length - 3} more
-          </span>
-        )}
+      {/* Session progress */}
+      <div style={{ height: 4, background: T.mutedBg, borderRadius: 999, overflow: 'hidden', marginBottom: 14 }}>
+        <div style={{ height: '100%', width: `${Math.round(progress * 100)}%`, background: colour, borderRadius: 999, transition: 'width 0.3s ease' }} />
       </div>
 
-      <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-        <button
-          onClick={onContinue}
-          style={{
-            background: colour,
-            color: '#fff',
-            border: 'none',
-            borderRadius: 8,
-            padding: '10px 24px',
-            fontSize: 13,
-            fontWeight: 700,
-            letterSpacing: '0.08em',
-            cursor: 'pointer',
-          }}
-        >
-          ▶ CONTINUE
+      <ExerciseChips exercises={savedSession.exercises || []} />
+
+      <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+        <button className="btn btn-primary" onClick={onContinue} style={{ backgroundColor: colour, flex: 1 }}>
+          <IconPlay />
+          Continue
         </button>
-        <button
-          onClick={onStartNew}
-          style={{
-            background: 'none',
-            border: 'none',
-            color: '#555',
-            fontSize: 12,
-            letterSpacing: '0.08em',
-            cursor: 'pointer',
-            padding: '10px 4px',
-          }}
-        >
-          START NEW {showSessionPicker ? '▾' : '▸'}
+        <button className="btn btn-ghost" onClick={onStartNew} aria-expanded={showSessionPicker}>
+          Start new
+          <IconChevron open={showSessionPicker} />
         </button>
       </div>
 
       {showSessionPicker && (
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginTop: 12 }}>
-          {DAYS.map((s, i) => (
-            <button key={s.name} onClick={() => {
-              setNextIdx(i);
-              setNextSessionIndex(i);
-              setShowSessionPicker(false);
-              if (onStartSession) onStartSession(s);
-            }} style={{
-              background: `${s.colour}18`,
-              border: `1px solid ${s.colour}44`,
-              borderRadius: 8, padding: '10px 12px',
-              color: s.colour, fontSize: 12,
-              fontFamily: 'var(--font)', fontWeight: 700,
-              letterSpacing: '0.06em', cursor: 'pointer',
-              textAlign: 'left',
-            }}>
-              {s.name}
-              <div style={{ fontSize: 10, color: '#666', fontWeight: 400, marginTop: 2 }}>
-                {s.exercises.length} exercises
-              </div>
-            </button>
-          ))}
-        </div>
+        <SessionPicker
+          onPick={(s, i) => {
+            setNextIdx(i);
+            setNextSessionIndex(i);
+            setShowSessionPicker(false);
+            if (onStartSession) onStartSession(s);
+          }}
+          onFreestyle={() => {
+            setShowSessionPicker(false);
+            if (onStartSession) onStartSession(FREESTYLE_SESSION);
+          }}
+        />
       )}
     </div>
   );
 }
 
-function Sparkline({ data, width = 72, height = 36, colour = '#4A90D9' }) {
+function Sparkline({ data, width = 72, height = 32, colour = 'var(--fg-muted)' }) {
   if (data.length < 2) return null;
   const weights = data.map((d) => d.weight);
   const min = Math.min(...weights);
@@ -217,7 +259,7 @@ function Sparkline({ data, width = 72, height = 36, colour = '#4A90D9' }) {
   return (
     <svg width={width} height={height} style={{ overflow: 'visible', flexShrink: 0, display: 'block' }}>
       <polyline points={points} fill="none" stroke={colour} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-      <circle cx={lx} cy={ly} r="2.5" fill={colour} />
+      <circle cx={lx} cy={ly} r="2.5" fill="var(--fg)" />
     </svg>
   );
 }
@@ -355,74 +397,121 @@ export default function Dashboard({ onStartSession, onViewSession, savedSession,
   );
   const fullSplitComplete = DAYS.every((d) => sessionTypesThisWeek.has(d.name));
 
+  const monthTitle = new Date().toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
+
   return (
     <div
       style={{
-        padding: '20px 16px',
-        fontFamily: 'var(--font)',
-        color: '#e8e8e8',
+        padding: '20px 16px 8px',
+        fontFamily: 'var(--font-sans)',
+        color: T.fg,
         maxWidth: 480,
         margin: '0 auto',
       }}
     >
       {/* ── Header ── */}
       <div style={{ marginBottom: 20 }}>
-        <div style={{ fontSize: 22, fontWeight: 700, letterSpacing: '0.04em', marginBottom: 4 }}>
-          SUMMER 2026
-        </div>
-        <div
-          style={{
-            fontSize: 11,
-            color: '#666',
-            letterSpacing: '0.12em',
-            textTransform: 'uppercase',
-            marginBottom: 10,
-          }}
-        >
-          WEEK {week} · {phase.toUpperCase()}
-        </div>
-        <div
-          style={{
-            fontSize: 11,
-            color: '#555',
-            letterSpacing: '0.12em',
-            textTransform: 'uppercase',
-            marginBottom: 10,
-          }}
-        >
-          {new Date().toLocaleDateString('en-GB', {
-            weekday: 'short',
-            day: 'numeric',
-            month: 'short',
-            year: 'numeric',
-          }).toUpperCase()}
+        <div style={{ paddingRight: 52, marginBottom: 12 }}>
+          <h1 style={{ fontSize: 24, fontWeight: 600, letterSpacing: '-0.02em', lineHeight: 1.2, color: T.fg, marginBottom: 4 }}>
+            {monthTitle}
+          </h1>
+          <div style={{ fontSize: 13, color: T.muted, display: 'flex', alignItems: 'center', gap: 6 }}>
+            <span style={{ color: T.fg, fontWeight: 500 }}>{phase}</span>
+            <span style={{ color: T.faint }}>·</span>
+            <span>Week {week}</span>
+            <span style={{ color: T.faint }}>·</span>
+            <span className="num">{pct}%</span>
+          </div>
         </div>
 
         {/* Progress bar */}
-        <div
-          style={{
-            height: 3,
-            background: '#2a2a2a',
-            borderRadius: 2,
-            marginBottom: 6,
-            overflow: 'hidden',
-          }}
-        >
+        <div style={{ height: 6, background: T.mutedBg, borderRadius: 999, boxShadow: 'inset 0 1px 1px rgba(0,0,0,0.5)' }}>
           <div
             style={{
               height: '100%',
               width: `${pct}%`,
-              background: phaseColour,
-              borderRadius: 2,
+              background: `linear-gradient(90deg, ${phaseColour}b3, ${phaseColour})`,
+              borderRadius: 999,
+              boxShadow: `0 0 12px ${phaseColour}66`,
               transition: 'width 0.4s ease',
             }}
           />
         </div>
-
-        <div style={{ fontSize: 10, color: '#444' }}>
-          {week} of 12 weeks · {pct}% complete
-        </div>
       </div>
+
+      {/* ── Week strip ── */}
+      <div style={{ display: 'flex', gap: 6, marginBottom: 16 }}>
+        {weekDays.map((day) => {
+          const dStr = toDateStr(day);
+          const isToday = dStr === todayStr;
+          const logEntry = sessionByDate[dStr];
+          const dailyEntry = dailyLog[dStr];
+          const sessionName = logEntry?.sessionName;
+          const abbr = sessionName ? SESSION_ABBR[sessionName] : null;
+          const colour = sessionName ? (DAYS.find((d) => d.name === sessionName)?.colour || FREESTYLE_SESSION.colour) : null;
+          const bw = dailyEntry?.weight;
+
+          return (
+            <div
+              key={dStr}
+              className={logEntry ? 'tap' : undefined}
+              onClick={() => logEntry && onViewSession && onViewSession(logEntry)}
+              style={{
+                flex: 1,
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                gap: 6,
+                cursor: logEntry ? 'pointer' : 'default',
+              }}
+            >
+              <div style={{ fontSize: 11, fontWeight: isToday ? 600 : 500, color: isToday ? T.fg : T.subtle }}>
+                {DAY_LETTER[day.getDay()]}
+              </div>
+              <div
+                style={{
+                  width: '100%',
+                  aspectRatio: '1',
+                  borderRadius: 'var(--radius-md)',
+                  background: abbr ? `${colour}1f` : T.card,
+                  border: abbr
+                    ? `1px solid ${colour}66`
+                    : `1px solid ${isToday ? 'var(--border-strong)' : T.border}`,
+                  boxShadow: isToday && !abbr ? 'inset 0 0 0 1px var(--border-strong)' : 'none',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: 11,
+                  fontWeight: 600,
+                  color: colour || T.faint,
+                  transition: 'background-color 0.15s ease',
+                }}
+              >
+                {abbr || (isToday ? <Dot colour="var(--fg-muted)" size={4} /> : '')}
+              </div>
+              <div className="num" style={{ fontSize: 10, color: T.subtle, minHeight: 12 }}>
+                {bw != null ? bw.toFixed(1) : ''}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Full split completion */}
+      {fullSplitComplete && (
+        <div
+          className="card"
+          style={{
+            display: 'flex', alignItems: 'center', gap: 10,
+            marginBottom: 16, padding: '10px 14px',
+            borderColor: '#0F8F6040',
+          }}
+        >
+          <Dot colour="#0F8F60" size={7} glow />
+          <span style={{ fontSize: 13, fontWeight: 500, color: T.fg }}>Full split complete</span>
+          <span style={{ marginLeft: 'auto', color: '#0F8F60', display: 'flex' }}><IconCheck /></span>
+        </div>
+      )}
 
       {/* ── Current Session card (in-progress) or Next Session card ── */}
       {savedSession ? (
@@ -431,210 +520,96 @@ export default function Dashboard({ onStartSession, onViewSession, savedSession,
           onContinue={onContinueSession}
           onStartNew={() => { setShowSessionPicker((v) => !v); }}
           showSessionPicker={showSessionPicker}
-          nextIdx={nextIdx}
           setNextIdx={setNextIdx}
           setShowSessionPicker={setShowSessionPicker}
           onStartSession={onStartSession}
         />
       ) : (
-        <div
-          style={{
-            background: tintedBg(nextSession.colour),
-            border: `1px solid ${nextSession.colour}33`,
-            borderRadius: 12,
-            padding: '16px 16px 14px',
-            marginBottom: 20,
-          }}
-        >
-          {/* accent bar */}
-          <div style={{ height: 3, background: nextSession.colour, opacity: 0.6, margin: '-16px -16px 14px', borderRadius: '12px 12px 0 0' }} />
-
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 2 }}>
-            <div style={{ fontSize: 10, color: '#666', letterSpacing: '0.12em' }}>NEXT SESSION</div>
-            <span style={{
-              background: `${nextSession.colour}18`, border: `1px solid ${nextSession.colour}33`,
-              borderRadius: 10, color: nextSession.colour, fontSize: 9, padding: '2px 8px', letterSpacing: '.06em',
-            }}>
-              {nextSession.exercises.length} exercises
-            </span>
+        <div className="card" style={{ padding: 16, marginBottom: 16 }}>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap', marginBottom: 14, position: 'relative' }}>
+            <div style={{ fontSize: 18, fontWeight: 600, color: T.fg, letterSpacing: '-0.01em' }}>
+              {nextSession.name}
+            </div>
+            <div style={{ fontSize: 13, color: T.muted }}>
+              {nextSession.subtitle}
+            </div>
           </div>
 
-          <div style={{ fontSize: 20, fontWeight: 700, color: nextSession.colour, letterSpacing: '0.03em', marginBottom: 4, marginTop: 6 }}>
-            {nextSession.name}
-          </div>
-          <div style={{ fontSize: 12, color: '#888', marginBottom: 12 }}>
-            {nextSession.subtitle}
-          </div>
+          <ExerciseChips exercises={nextSession.exercises} />
 
-          {/* Exercise preview chips */}
-          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 14 }}>
-            {nextSession.exercises.slice(0, 3).map((ex) => (
-              <span key={ex.name} style={{
-                background: `${nextSession.colour}12`, border: `1px solid ${nextSession.colour}28`,
-                borderRadius: 4, color: '#888', fontSize: 9, padding: '2px 7px',
-              }}>
-                {ex.name.split(' ').slice(0, 3).join(' ')}
-              </span>
-            ))}
-            {nextSession.exercises.length > 3 && (
-              <span style={{ background: '#111', border: '1px solid #2a2a2a', borderRadius: 4, color: '#444', fontSize: 9, padding: '2px 7px' }}>
-                +{nextSession.exercises.length - 3} more
-              </span>
-            )}
-          </div>
-
-          <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-            <button onClick={handleStart} style={{
-              background: nextSession.colour, color: '#fff', border: 'none', borderRadius: 8,
-              padding: '10px 24px', fontSize: 13, fontWeight: 700, letterSpacing: '0.08em', cursor: 'pointer',
-            }}>
-              ▶ START
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            <button className="btn btn-primary" onClick={handleStart} style={{ backgroundColor: nextSession.colour, flex: 1 }}>
+              <IconPlay />
+              Start session
             </button>
-            <button onClick={handleChange} style={{
-              background: 'none', border: 'none', color: '#666',
-              fontSize: 12, letterSpacing: '0.08em', cursor: 'pointer', padding: '10px 4px',
-            }}>
-              CHANGE {showSessionPicker ? '▾' : '▸'}
+            <button className="btn btn-ghost" onClick={handleChange} aria-expanded={showSessionPicker}>
+              Change
+              <IconChevron open={showSessionPicker} />
             </button>
           </div>
 
           {showSessionPicker && (
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginTop: 12 }}>
-              {DAYS.map((s, i) => (
-                <button key={s.name} onClick={() => {
-                  setNextIdx(i);
-                  setNextSessionIndex(i);
-                  setShowSessionPicker(false);
-                }} style={{
-                  background: `${s.colour}18`, border: `1px solid ${s.colour}44`,
-                  borderRadius: 8, padding: '10px 12px', color: s.colour, fontSize: 12,
-                  fontFamily: 'var(--font)', fontWeight: 700, letterSpacing: '0.06em',
-                  cursor: 'pointer', textAlign: 'left',
-                }}>
-                  {s.name}
-                  <div style={{ fontSize: 10, color: '#666', fontWeight: 400, marginTop: 2 }}>
-                    {s.exercises.length} exercises
-                  </div>
-                </button>
-              ))}
-            </div>
+            <SessionPicker
+              onPick={(s, i) => {
+                setNextIdx(i);
+                setNextSessionIndex(i);
+                setShowSessionPicker(false);
+              }}
+              onFreestyle={() => {
+                setShowSessionPicker(false);
+                if (onStartSession) onStartSession(FREESTYLE_SESSION);
+              }}
+            />
           )}
         </div>
       )}
 
-      {/* ── This Week strip ── */}
-      <div style={{ marginBottom: 20 }}>
-        <div style={{ fontSize: 11, color: '#555', letterSpacing: '0.1em', marginBottom: 10 }}>
-          THIS WEEK
-        </div>
-        <div style={{ display: 'flex', gap: 6 }}>
-          {weekDays.map((day, i) => {
-            const dStr = toDateStr(day);
-            const isToday = dStr === todayStr;
-            const logEntry = sessionByDate[dStr];
-            const dailyEntry = dailyLog[dStr];
-            const sessionName = logEntry?.sessionName;
-            const abbr = sessionName ? SESSION_ABBR[sessionName] : null;
-            const colour = sessionName ? DAYS.find((d) => d.name === sessionName)?.colour : null;
-            const bw = dailyEntry?.weight;
-
-            return (
-              <div
-                key={dStr}
-                onClick={() => logEntry && onViewSession && onViewSession(logEntry)}
-                style={{
-                  flex: 1,
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  gap: 4,
-                  cursor: logEntry ? 'pointer' : 'default',
-                }}
+      {/* ── Muscle Volume ── */}
+      <div className="card" style={{ padding: 16, marginBottom: 12 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+          <div>
+            <div style={{ fontSize: 15, fontWeight: 600, color: T.fg, letterSpacing: '-0.01em' }}>Muscle volume</div>
+            <div style={{ fontSize: 12, color: T.subtle, marginTop: 2 }}>Sets per muscle · last 7 days</div>
+          </div>
+          <div className="seg" role="tablist" aria-label="Illustration view">
+            {['front', 'back'].map((v) => (
+              <button
+                key={v}
+                role="tab"
+                className="seg-item"
+                data-active={muscleView === v}
+                aria-selected={muscleView === v}
+                onClick={() => setMuscleView(v)}
               >
-                <div
-                  style={{
-                    fontSize: 10,
-                    color: isToday ? '#e8e8e8' : '#444',
-                    letterSpacing: '0.05em',
-                  }}
-                >
-                  {DAY_LETTER[day.getDay()]}
-                </div>
-                <div
-                  style={{
-                    width: '100%',
-                    aspectRatio: '1',
-                    borderRadius: 6,
-                    background: abbr ? colour + '22' : 'transparent',
-                    border: abbr
-                      ? `1px solid ${colour}66`
-                      : isToday
-                      ? '1px solid #3a3a3a'
-                      : '1px dashed #2a2a2a',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    fontSize: 9,
-                    fontWeight: 700,
-                    color: colour || '#333',
-                    letterSpacing: '0.02em',
-                  }}
-                >
-                  {abbr || ''}
-                </div>
-                <div style={{ fontSize: 9, color: '#444' }}>
-                  {bw != null ? bw.toFixed(1) : ''}
-                </div>
-              </div>
-            );
-          })}
+                {v === 'front' ? 'Front' : 'Back'}
+              </button>
+            ))}
+          </div>
         </div>
+        <div
+          ref={illustrationRef}
+          className="card-spot"
+          style={{ display: 'flex', justifyContent: 'center', padding: '4px 0', visibility: momentPhase !== 'idle' ? 'hidden' : 'visible' }}
+        >
+          {muscleView === 'front'
+            ? <MuscleIllustration size={140} weeklyVolume={weeklyVolume} volumeTargets={volumeTargets} />
+            : <MuscleIllustrationBack size={140} weeklyVolume={weeklyVolume} volumeTargets={volumeTargets} />
+          }
+        </div>
+        <MuscleBreakdown weeklyVolume={weeklyVolume} volumeTargets={volumeTargets} />
       </div>
 
-      {/* Full split completion */}
-      {fullSplitComplete && (
-        <div style={{
-          display: 'flex', alignItems: 'center', gap: 8,
-          marginTop: -10, marginBottom: 20,
-          padding: '8px 12px',
-          background: '#5BBD7211',
-          border: '1px solid #5BBD7233',
-          borderRadius: 8,
-        }}>
-          <div style={{
-            width: 6, height: 6, borderRadius: '50%',
-            background: '#5BBD72',
-            boxShadow: '0 0 6px #5BBD72',
-            flexShrink: 0,
-          }} />
-          <span style={{ fontSize: 10, color: '#5BBD72', fontWeight: 700, letterSpacing: '0.14em' }}>
-            FULL SPLIT COMPLETE
-          </span>
-          <div style={{ flex: 1, height: 1, background: '#5BBD7222' }} />
-          <span style={{ fontSize: 10, color: '#5BBD7288' }}>✓</span>
-        </div>
-      )}
-
       {/* ── TODAY + Habits ── */}
-      <div style={{ display: 'flex', gap: 12, marginBottom: 24 }}>
+      <div style={{ display: 'flex', gap: 12, marginBottom: 8 }}>
         {/* Bodyweight */}
-        <div
-          style={{
-            flex: 1,
-            background: '#1a1a1a',
-            border: '1px solid #2a2a2a',
-            borderRadius: 12,
-            padding: '14px 14px',
-          }}
-        >
-          <div style={{ fontSize: 10, color: '#555', letterSpacing: '0.1em', marginBottom: 10 }}>
-            TODAY
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <div>
-              <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
+        <div className="card" style={{ flex: 1, padding: 14, minWidth: 0 }}>
+          <SectionLabel style={{ marginBottom: 10 }}>Bodyweight</SectionLabel>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <div style={{ minWidth: 0 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                 <input
                   type="number"
+                  inputMode="decimal"
                   step="0.1"
                   min="40"
                   max="150"
@@ -642,27 +617,21 @@ export default function Dashboard({ onStartSession, onViewSession, savedSession,
                   onChange={(e) => setWeightInput(e.target.value)}
                   onBlur={handleWeightBlur}
                   placeholder="—"
-                  style={{
-                    background: '#222',
-                    border: '1px solid #2a2a2a',
-                    borderRadius: 6,
-                    color: '#e8e8e8',
-                    fontSize: 20,
-                    fontFamily: 'var(--font)',
-                    fontWeight: 700,
-                    width: 80,
-                    padding: '4px 8px',
-                    outline: 'none',
-                  }}
+                  aria-label="Bodyweight in kilograms"
+                  className="input"
+                  style={{ fontSize: 20, fontWeight: 600, width: 76, height: 40, padding: '0 10px' }}
                 />
-                <span style={{ fontSize: 12, color: '#666' }}>kg</span>
+                <span style={{ fontSize: 13, color: T.muted }}>kg</span>
               </div>
               {weightDelta != null && (
                 <div style={{
-                  fontSize: 9, marginTop: 4, letterSpacing: '.06em',
-                  color: weightDelta <= 0 ? '#4A90D9' : '#E8634Acc',
+                  display: 'flex', alignItems: 'center', gap: 4,
+                  fontSize: 11, marginTop: 6,
+                  color: weightDelta <= 0 ? '#4361EE' : '#C41E2E',
                 }}>
-                  {weightDelta > 0 ? '↑' : '↓'} {Math.abs(weightDelta).toFixed(1)} vs last week
+                  <IconTrend up={weightDelta > 0} />
+                  <span className="num">{Math.abs(weightDelta).toFixed(1)}</span>
+                  <span style={{ color: T.subtle }}>vs last week</span>
                 </div>
               )}
             </div>
@@ -671,90 +640,51 @@ export default function Dashboard({ onStartSession, onViewSession, savedSession,
         </div>
 
         {/* Habits */}
-        <div
-          style={{
-            background: '#1a1a1a',
-            border: '1px solid #2a2a2a',
-            borderRadius: 12,
-            padding: '14px 14px',
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            gap: 10,
-          }}
-        >
-          <div style={{ fontSize: 10, color: '#555', letterSpacing: '0.1em' }}>HABITS</div>
-          <div style={{ display: 'flex', gap: 12 }}>
-            {HABIT_CONFIG.map(({ key, colour }) => {
+        <div className="card" style={{ padding: 14, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 }}>
+          <SectionLabel style={{ alignSelf: 'flex-start' }}>Habits</SectionLabel>
+          <div style={{ display: 'flex', gap: 6 }}>
+            {HABIT_CONFIG.map(({ key, label, colour }) => {
               const done = todayEntry?.habits?.[key] || false;
               return (
                 <button
                   key={key}
+                  className="tap"
                   onClick={() => toggleHabit(key)}
+                  aria-pressed={done}
+                  aria-label={label || 'Private habit'}
                   style={{
                     background: 'none',
                     border: 'none',
-                    padding: 4,
-                    cursor: 'pointer',
+                    padding: 0,
+                    width: 40,
+                    fontFamily: 'var(--font-sans)',
                     display: 'flex',
+                    flexDirection: 'column',
                     alignItems: 'center',
-                    justifyContent: 'center',
-                    minWidth: 36,
-                    minHeight: 36,
+                    gap: 6,
+                    cursor: 'pointer',
                   }}
                 >
-                  <svg width="22" height="22" viewBox="0 0 22 22">
-                    <circle
-                      cx="11"
-                      cy="11"
-                      r="9"
-                      fill={done ? colour : 'none'}
-                      stroke={done ? colour : '#333'}
-                      strokeWidth="1.5"
-                    />
-                  </svg>
+                  <span
+                    style={{
+                      width: 28, height: 28, borderRadius: '50%',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      background: done ? colour : 'transparent',
+                      border: `1.5px solid ${done ? colour : 'var(--border-strong)'}`,
+                      color: '#fff',
+                      transition: 'background-color 0.15s ease, border-color 0.15s ease',
+                    }}
+                  >
+                    {done && <IconCheck size={13} />}
+                  </span>
+                  <span style={{ fontSize: 10, color: done ? T.muted : T.subtle, height: 12 }}>
+                    {label || ''}
+                  </span>
                 </button>
               );
             })}
           </div>
-          <div style={{ display: 'flex', gap: 12 }}>
-            {HABIT_CONFIG.map(({ key, label }) => (
-              <span key={key} style={{ fontSize: 9, color: '#444', width: 22, textAlign: 'center' }}>
-                {label || ''}
-              </span>
-            ))}
-          </div>
         </div>
-      </div>
-
-      {/* ── Muscle Volume ── */}
-      <div style={{ padding: '16px', background: '#1a1a1a', borderRadius: 12, border: '1px solid #2a2a2a' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-          <div style={{ fontSize: 11, letterSpacing: '2px', color: '#666' }}>7-DAY MUSCLE VOLUME</div>
-          <button
-            onClick={() => setMuscleView((v) => v === 'front' ? 'back' : 'front')}
-            style={{
-              background: '#222', border: '1px solid #2a2a2a', borderRadius: 12,
-              color: '#888', fontSize: 10, fontFamily: 'var(--font)',
-              letterSpacing: '0.08em', padding: '3px 10px', cursor: 'pointer',
-            }}
-          >
-            {muscleView === 'front' ? 'FRONT ↺' : 'BACK ↺'}
-          </button>
-        </div>
-        <div
-          ref={illustrationRef}
-          style={{ display: 'flex', justifyContent: 'center', visibility: momentPhase !== 'idle' ? 'hidden' : 'visible' }}
-        >
-          {muscleView === 'front'
-            ? <MuscleIllustration size={140} weeklyVolume={weeklyVolume} volumeTargets={volumeTargets} />
-            : <MuscleIllustrationBack size={140} weeklyVolume={weeklyVolume} volumeTargets={volumeTargets} />
-          }
-        </div>
-        <div style={{ textAlign: 'center', fontSize: 10, color: '#444', marginTop: 8 }}>
-          {muscleView === 'front' ? 'front view · last 7 days' : 'back view · last 7 days'}
-        </div>
-        <MuscleBreakdown weeklyVolume={weeklyVolume} volumeTargets={volumeTargets} />
       </div>
       <MuscleAnimationOverlay
         weeklyVolume={weeklyVolume}
@@ -765,4 +695,3 @@ export default function Dashboard({ onStartSession, onViewSession, savedSession,
     </div>
   );
 }
-
