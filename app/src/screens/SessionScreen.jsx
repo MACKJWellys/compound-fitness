@@ -23,8 +23,6 @@ const DANGER = '#f87171';
 const I = { width: 16, height: 16, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 2, strokeLinecap: 'round', strokeLinejoin: 'round' };
 const Icon = {
   back: <svg {...I}><path d="m15 18-6-6 6-6" /></svg>,
-  up: <svg {...I}><path d="m18 15-6-6-6 6" /></svg>,
-  down: <svg {...I}><path d="m6 9 6 6 6-6" /></svg>,
   swap: <svg {...I}><path d="M8 3 4 7l4 4M4 7h16M16 21l4-4-4-4M20 17H4" /></svg>,
   history: <svg {...I}><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></svg>,
   trophy: <svg {...I}><path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0z" /><path d="M17 6h3v2a3 3 0 0 1-3 3M7 6H4v2a3 3 0 0 0 3 3" /></svg>,
@@ -33,6 +31,8 @@ const Icon = {
   x: <svg {...I}><path d="M18 6 6 18M6 6l12 12" /></svg>,
   trash: <svg {...I}><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6" /></svg>,
   body: <svg {...I}><circle cx="12" cy="4.5" r="2.5" /><path d="M8 9.5h8l-1 5.5v6h-2.5v-5h-1v5H9v-6z" /></svg>,
+  reorder: <svg {...I}><path d="M7 4v16M7 20l-3-3M7 20l3-3M17 20V4M17 4l-3 3M17 4l3 3" /></svg>,
+  grip: <svg {...I} strokeWidth={0} fill="currentColor"><circle cx="9" cy="6" r="1.6" /><circle cx="15" cy="6" r="1.6" /><circle cx="9" cy="12" r="1.6" /><circle cx="15" cy="12" r="1.6" /><circle cx="9" cy="18" r="1.6" /><circle cx="15" cy="18" r="1.6" /></svg>,
 };
 
 // Pick readable text colour for a solid button of the given hex colour
@@ -226,7 +226,7 @@ function SetRow({ setNum, setData, colour, dimmed, onChange, isPR }) {
 
 // ── Exercise Card ─────────────────────────────────────────────────────────────
 
-function ExerciseCard({ exercise, colour, sets, onSetsChange, prBook, onOpenPRSheet, onOpenHistory, onMoveUp, onMoveDown, onSubstitute, onStartTimer }) {
+function ExerciseCard({ exercise, colour, sets, onSetsChange, prBook, onOpenPRSheet, onOpenHistory, onSubstitute, onStartTimer }) {
   const [noteExpanded, setNoteExpanded] = useState(false);
   const [snapping, setSnapping] = useState(false);
   const prevAllCompleteRef = useRef(false);
@@ -298,8 +298,6 @@ function ExerciseCard({ exercise, colour, sets, onSetsChange, prBook, onOpenPRSh
           </div>
         </button>
         <div style={{ display: 'flex', alignItems: 'center', gap: 1, flexShrink: 0, marginTop: -4, marginRight: -6 }}>
-          {onMoveUp && <IconBtn onClick={onMoveUp} label="Move up">{Icon.up}</IconBtn>}
-          {onMoveDown && <IconBtn onClick={onMoveDown} label="Move down">{Icon.down}</IconBtn>}
           {onSubstitute && <IconBtn onClick={onSubstitute} label="Swap exercise">{Icon.swap}</IconBtn>}
           {onOpenHistory && <IconBtn onClick={() => onOpenHistory(exercise)} label="History">{Icon.history}</IconBtn>}
           <IconBtn onClick={() => onOpenPRSheet(exercise)} label="PR book">{Icon.trophy}</IconBtn>
@@ -943,6 +941,111 @@ function CompletionModal({ session, sessionIndex, exercises, setsPerExercise, on
   );
 }
 
+// ── Reorder sheet (drag to reorder, Spotify-queue style) ─────────────────────
+
+const ROW_H = 52;
+const ROW_GAP = 8;
+const ROW_STEP = ROW_H + ROW_GAP;
+const EASE = 'cubic-bezier(0.2, 0.8, 0.2, 1)';
+
+function ReorderSheet({ exercises, setsPerExercise, colour, onMove, onClose }) {
+  const [drag, setDrag] = useState(null); // { from, to, startY, dy, dropping }
+  const dragRef = useRef(null);
+  const count = exercises.length;
+
+  function setDragState(next) {
+    dragRef.current = next;
+    setDrag(next);
+  }
+
+  function handlePointerDown(e, i) {
+    if (dragRef.current) return;
+    if (e.pointerType === 'mouse' && e.button !== 0) return;
+    try { e.currentTarget.setPointerCapture(e.pointerId); } catch { /* synthetic events */ }
+    setDragState({ from: i, to: i, startY: e.clientY, dy: 0, dropping: false });
+  }
+
+  function handlePointerMove(e) {
+    const d = dragRef.current;
+    if (!d || d.dropping) return;
+    const dy = e.clientY - d.startY;
+    const to = Math.max(0, Math.min(count - 1, Math.round(d.from + dy / ROW_STEP)));
+    if (to !== d.to && navigator.vibrate) navigator.vibrate(8);
+    setDragState({ ...d, dy, to });
+  }
+
+  function handlePointerUp() {
+    const d = dragRef.current;
+    if (!d || d.dropping) return;
+    // Glide into the slot, then commit the move once the animation lands
+    setDragState({ ...d, dropping: true, dy: (d.to - d.from) * ROW_STEP });
+    setTimeout(() => {
+      if (d.to !== d.from) onMove(d.from, d.to);
+      setDragState(null);
+    }, 200);
+  }
+
+  function rowTransform(i) {
+    if (!drag) return 'translateY(0)';
+    if (i === drag.from) return `translateY(${drag.dy}px)${drag.dropping ? '' : ' scale(1.02)'}`;
+    if (drag.from < drag.to && i > drag.from && i <= drag.to) return `translateY(-${ROW_STEP}px)`;
+    if (drag.from > drag.to && i >= drag.to && i < drag.from) return `translateY(${ROW_STEP}px)`;
+    return 'translateY(0)';
+  }
+
+  return (
+    <Sheet title="Reorder exercises" subtitle="Press and drag a row to move it" onClose={onClose} maxHeight="88vh">
+      <div
+        style={{ display: 'flex', flexDirection: 'column', gap: ROW_GAP, position: 'relative', paddingBottom: 4 }}
+        onPointerMove={handlePointerMove}
+        onPointerUp={handlePointerUp}
+        onPointerCancel={handlePointerUp}
+      >
+        {exercises.map((ex, i) => {
+          const isDragging = drag && i === drag.from;
+          const logged = (setsPerExercise[i] || []).filter((st) => { const r = parseInt(st.reps); return !isNaN(r) && r > 0; }).length;
+          const total = parseMaxSets(ex.sets);
+          const displayIndex = drag ? (
+            i === drag.from ? drag.to
+              : (drag.from < drag.to && i > drag.from && i <= drag.to) ? i - 1
+              : (drag.from > drag.to && i >= drag.to && i < drag.from) ? i + 1
+              : i
+          ) : i;
+          return (
+            <div
+              key={`${ex.name}-${i}`}
+              className="card"
+              onPointerDown={(e) => handlePointerDown(e, i)}
+              style={{
+                height: ROW_H,
+                display: 'flex', alignItems: 'center', gap: 12,
+                padding: '0 10px 0 14px',
+                touchAction: 'none',
+                userSelect: 'none',
+                WebkitUserSelect: 'none',
+                cursor: isDragging ? 'grabbing' : 'grab',
+                transform: rowTransform(i),
+                transition: isDragging && !drag.dropping ? 'box-shadow 0.15s ease, background-color 0.15s ease' : `transform 0.22s ${EASE}, box-shadow 0.15s ease, background-color 0.15s ease`,
+                zIndex: isDragging ? 2 : 1,
+                position: 'relative',
+                background: isDragging ? 'var(--muted)' : undefined,
+                boxShadow: isDragging ? '0 12px 32px rgba(0,0,0,0.6), 0 0 0 1px var(--border-strong)' : undefined,
+                borderColor: isDragging ? colour + '66' : undefined,
+              }}
+            >
+              <span className="num" style={{ fontSize: 12, color: T.subtle, width: 16, textAlign: 'right', flexShrink: 0 }}>{displayIndex + 1}</span>
+              <span style={{ flex: 1, minWidth: 0, fontSize: 14, fontWeight: 500, color: T.fg, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{ex.name}</span>
+              <span className="num" style={{ fontSize: 12, color: logged >= total ? colour : T.subtle, flexShrink: 0 }}>{logged}/{total}</span>
+              <span style={{ color: T.faint, display: 'flex', flexShrink: 0, marginLeft: 2 }}>{Icon.grip}</span>
+            </div>
+          );
+        })}
+      </div>
+      <button onClick={onClose} className="btn btn-outline" style={{ width: '100%', marginTop: 12 }}>Done</button>
+    </Sheet>
+  );
+}
+
 // ── Freestyle quick-add ──────────────────────────────────────────────────────
 
 function FreestyleQuickAdd({ remaining, empty, onAdd }) {
@@ -1044,6 +1147,7 @@ export default function SessionScreen({ session, sessionIndex, onBack, onComplet
   const [showModal, setShowModal] = useState(false);
   const [summaryData, setSummaryData] = useState(null); // { detectedPRs, totalSets, totalKg }
   const [muscleChipOpen, setMuscleChipOpen] = useState(false);
+  const [showReorder, setShowReorder] = useState(false);
   const { timerSeconds, startTimer, stopTimer } = useRestTimer();
 
   const weeklyVolumeBase = useRef(() => {
@@ -1207,6 +1311,15 @@ export default function SessionScreen({ session, sessionIndex, onBack, onComplet
               <span className="num" style={{ flexShrink: 0 }}>{completedExercises}/{exercises.length}</span>
             </div>
           </div>
+          {!isHistoryMode && exercises.length > 1 && (
+            <IconBtn
+              onClick={() => setShowReorder(true)}
+              label="Reorder exercises"
+              style={{ width: 36, height: 36, borderRadius: 8, border: '1px solid var(--border)', background: T.bg }}
+            >
+              {Icon.reorder}
+            </IconBtn>
+          )}
           {!isHistoryMode && (
             <IconBtn
               onClick={() => setMuscleChipOpen((v) => !v)}
@@ -1268,8 +1381,6 @@ export default function SessionScreen({ session, sessionIndex, onBack, onComplet
             prBook={prBook}
             onOpenPRSheet={(ex) => setPrSheetExercise(ex)}
             onOpenHistory={isHistoryMode ? null : (ex) => setHistoryExercise(ex)}
-            onMoveUp={isHistoryMode || i === 0 ? null : () => moveExercise(i, i - 1)}
-            onMoveDown={isHistoryMode || i === exercises.length - 1 ? null : () => moveExercise(i, i + 1)}
             onSubstitute={isHistoryMode ? null : () => setSubstituteForIdx(i)}
             onStartTimer={startTimer}
           />
@@ -1317,6 +1428,16 @@ export default function SessionScreen({ session, sessionIndex, onBack, onComplet
 
       {showCustomExercise && (
         <AddExerciseSheet colour={colour} onAdd={handleAddCustomExercise} onClose={() => setShowCustomExercise(false)} />
+      )}
+
+      {showReorder && (
+        <ReorderSheet
+          exercises={exercises}
+          setsPerExercise={setsPerExercise}
+          colour={colour}
+          onMove={moveExercise}
+          onClose={() => setShowReorder(false)}
+        />
       )}
 
       {summaryData && (
