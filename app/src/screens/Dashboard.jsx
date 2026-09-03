@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { DAYS, PROGRAMME_START, FREESTYLE_SESSION } from '../data/programme';
+import { DAYS, PROGRAMME_START, PROGRAMME_END, FREESTYLE_SESSION } from '../data/programme';
 import {
   getSessionLog,
   getDailyLog,
@@ -266,7 +266,7 @@ function Sparkline({ data, width = 72, height = 32, colour = 'var(--fg-muted)' }
 
 export default function Dashboard({ onStartSession, onViewSession, savedSession, onContinueSession }) {
   const todayStr = toDateStr(new Date());
-  const { week, phase, pct } = getProgrammeWeek(PROGRAMME_START);
+  const { week, phase, pct } = getProgrammeWeek(PROGRAMME_START, PROGRAMME_END);
   const phaseColour = PHASE_COLOURS[phase] || '#e8e8e8';
 
   const [nextIdx, setNextIdx] = useState(getNextSessionIndex());

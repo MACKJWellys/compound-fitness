@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { DAYS, PROGRESSION, NON_NEGOTIABLES, WEEKLY_STRUCTURE } from '../data/programme';
+import { DAYS, PROGRESSION, NON_NEGOTIABLES, WEEKLY_STRUCTURE, TOTAL_WEEKS } from '../data/programme';
 
 function ExerciseCard({ exercise }) {
   const [expanded, setExpanded] = useState(false);
@@ -239,10 +239,10 @@ export default function Programme() {
       {/* Header */}
       <div style={{ padding: '20px 20px 14px', borderBottom: '1px solid #2a2a2a' }}>
         <div style={{ fontSize: 11, color: '#555', letterSpacing: '0.12em', marginBottom: 2 }}>
-          SUMMER 2026
+          SEPTEMBER – DECEMBER 2026
         </div>
         <div style={{ fontSize: 18, fontWeight: 700, letterSpacing: '0.08em', color: '#e8e8e8' }}>
-          12-Week PPL Programme
+          {TOTAL_WEEKS}-Week PPL Programme
         </div>
       </div>
 

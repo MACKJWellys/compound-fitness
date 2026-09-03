@@ -1,6 +1,7 @@
-export const PROGRAMME_START = new Date('2026-04-01');
-export const PROGRAMME_END = new Date('2026-06-24');
-export const TOTAL_WEEKS = 12;
+// Current training block: September to the new year
+export const PROGRAMME_START = new Date('2026-09-01T00:00:00');
+export const PROGRAMME_END = new Date('2026-12-31T23:59:59');
+export const TOTAL_WEEKS = Math.ceil((PROGRAMME_END - PROGRAMME_START) / (7 * 24 * 60 * 60 * 1000));
 
 export const DAYS = [
   {
@@ -110,9 +111,9 @@ export const FREESTYLE_QUICK_ADDS = [
 ];
 
 export const PROGRESSION = [
-  { weeks: 'Weeks 1–4', title: 'Foundation', detail: 'Hit all sessions. Learn the leg movements. Keep 1–2 reps in reserve on everything. Get your eating dialled — 2,400–2,600 kcal, 140g+ protein. Weigh yourself 3× per week and average it.' },
-  { weeks: 'Weeks 5–8', title: 'Push', detail: 'Add weight to your main lifts when you hit the top of the rep range for all sets. Push lateral raises to 4× per week. Introduce intensity techniques: drop sets on the last set of isolation work.' },
-  { weeks: 'Weeks 9–12', title: 'Peak', detail: 'You should be 73–74kg. Top sets on compounds can go closer to failure. Add a 5th set to pull-ups and rows if recovering well. Final 2 weeks: slight calorie drop to tighten up for summer if desired.' },
+  { weeks: 'Weeks 1–6', title: 'Foundation', detail: 'Hit all sessions. Learn the leg movements. Keep 1–2 reps in reserve on everything. Get your eating dialled — 2,400–2,600 kcal, 140g+ protein. Weigh yourself 3× per week and average it.' },
+  { weeks: 'Weeks 7–12', title: 'Push', detail: 'Add weight to your main lifts when you hit the top of the rep range for all sets. Push lateral raises to 4× per week. Introduce intensity techniques: drop sets on the last set of isolation work.' },
+  { weeks: 'Weeks 13–18', title: 'Peak', detail: 'You should be 73–74kg. Top sets on compounds can go closer to failure. Add a 5th set to pull-ups and rows if recovering well. Final 2 weeks: slight calorie drop to tighten up for the new year if desired.' },
 ];
 
 export const WEEKLY_STRUCTURE = [

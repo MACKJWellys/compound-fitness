@@ -14,12 +14,15 @@ export function toDateStr(date) {
   return `${y}-${m}-${d}`;
 }
 
-export function getProgrammeWeek(programmeStart = new Date('2026-04-01')) {
+export function getProgrammeWeek(programmeStart = new Date('2026-09-01'), programmeEnd = new Date('2026-12-31')) {
   const now = new Date();
+  const weekMs = 7 * 24 * 60 * 60 * 1000;
+  const totalWeeks = Math.max(1, Math.ceil((programmeEnd - programmeStart) / weekMs));
   const diffMs = now - programmeStart;
-  if (diffMs < 0) return { week: 1, phase: 'Foundation', pct: 0 };
-  const week = Math.min(12, Math.floor(diffMs / (7 * 24 * 60 * 60 * 1000)) + 1);
-  const phase = week <= 4 ? 'Foundation' : week <= 8 ? 'Push' : 'Peak';
-  const pct = Math.round((week - 1) / 12 * 100);
-  return { week, phase, pct };
+  if (diffMs < 0) return { week: 1, phase: 'Foundation', pct: 0, totalWeeks };
+  const week = Math.min(totalWeeks, Math.floor(diffMs / weekMs) + 1);
+  const third = totalWeeks / 3;
+  const phase = week <= Math.ceil(third) ? 'Foundation' : week <= Math.ceil(third * 2) ? 'Push' : 'Peak';
+  const pct = Math.min(100, Math.round((diffMs / (programmeEnd - programmeStart)) * 100));
+  return { week, phase, pct, totalWeeks };
 }

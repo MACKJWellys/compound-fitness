@@ -4,11 +4,13 @@ import { getSessionLog, getDailyLog, saveDailyEntry, updateSessionRating, update
 import { toDateStr } from '../utils/dateUtils';
 
 function getCalendarMonths() {
-  const programmeStart = new Date(2026, 3, 1);
+  // History begins with the first logged block (April 2026) and runs to the current month,
+  // newest first, so the calendar always opens on this month.
+  const historyStart = new Date(2026, 3, 1);
   const today = new Date();
   const months = [];
-  const start = new Date(programmeStart.getFullYear(), programmeStart.getMonth(), 1);
-  const endMonth = new Date(Math.max(today.getTime(), new Date(2026, 5, 30).getTime()));
+  const start = new Date(historyStart.getFullYear(), historyStart.getMonth(), 1);
+  const endMonth = new Date(today.getFullYear(), today.getMonth(), 1);
   let current = new Date(start);
 
   while (current <= endMonth) {
